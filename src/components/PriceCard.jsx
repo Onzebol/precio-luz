@@ -10,10 +10,10 @@ export function PriceCard({ icon, title, price, text, color }) {
 					<Flex
 						justifyContent="start"
 						alignItems="baseline"
-						className="truncate space-x-3"
+						className="flex-wrap"
 					>
-						<Metric>{price}</Metric>
-						<Text className="truncate">{text}</Text>
+						<Metric className="mr-3">{price}</Metric>
+						<Text className="">{text}</Text>
 					</Flex>
 				</div>
 			</Flex>

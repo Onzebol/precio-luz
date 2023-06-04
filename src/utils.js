@@ -1,5 +1,6 @@
-export const euroFormatter = (value, minDigits = 2, maxDigits = 5) =>
-	`${Intl.NumberFormat("es-ES", {
+export const euroFormatter = (value, minDigits = 2, maxDigits = 5) => {
+	if (value === 0) return "- €";
+	return `${Intl.NumberFormat("es-ES", {
 		style: "currency",
 		currency: "EUR",
 		minimumFractionDigits: minDigits,
@@ -7,6 +8,7 @@ export const euroFormatter = (value, minDigits = 2, maxDigits = 5) =>
 	})
 		.format(value)
 		.toString()}`;
+};
 
 export const incrementarHora = (value) => {
 	const hora = value.split(":")[0];
