@@ -1,5 +1,5 @@
 export const euroFormatter = (value, minDigits = 2, maxDigits = 5) => {
-	if (value === 0) return "- €";
+	if (value === null) return "- €";
 	return `${Intl.NumberFormat("es-ES", {
 		style: "currency",
 		currency: "EUR",
