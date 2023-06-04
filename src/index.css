@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+#inputDate {
+	align-items: center;
+	box-sizing: border-box;
+	height: 38px;
+	border: 1px solid rgb(209, 213, 219);
+	box-shadow: rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px,
+		rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+	cursor: pointer;
+	padding-right: 1rem;
+	padding-left: 1rem;
+	padding-top: 0.5rem;
+	padding-bottom: 0.5rem;
+	border-radius: 0.375rem;
+	font-weight: 500;
+}
+
+#inputDate:hover {
+	background-color: rgb(249, 250, 251);
+}
+
+#inputDate + button {
+	display: none;
+}
