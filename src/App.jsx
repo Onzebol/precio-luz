@@ -1,34 +1,40 @@
 import { useEffect, useState } from "react";
 import {
+	AreaChart,
 	Card,
-	DateRangePicker,
 	Dropdown,
 	DropdownItem,
 	Flex,
 	Grid,
 	Icon,
-	Metric,
 	Tab,
 	TabList,
+	Table,
+	TableBody,
+	TableCell,
+	TableHead,
+	TableHeaderCell,
+	TableRow,
 	Text,
 	Title,
-	Toggle,
-	ToggleItem,
 } from "@tremor/react";
-import { ChartView } from "./components/ChartView";
-import { da, es } from "date-fns/locale";
 import {
 	ArrowSmDownIcon,
 	ArrowSmUpIcon,
 	CalendarIcon,
-	GlobeAltIcon,
 	GlobeIcon,
 	LightningBoltIcon,
+	MinusIcon,
 } from "@heroicons/react/outline";
-import { StringToNumerLocale } from "./utils/StringToNumberLocale";
 import { PriceCard } from "./components/PriceCard";
 import Datepicker from "react-tailwindcss-datepicker";
-import { euroFormatter, incrementarHora } from "./utils";
+import {
+	StringToNumerLocale,
+	colorearPrecios,
+	euroFormatter,
+	incrementarHora,
+	ordenarPrecios,
+} from "./utils";
 
 const pedirDatos = (date) => {
 	return fetch(
@@ -65,19 +71,11 @@ const filterData = (data, province, unity) => {
 	});
 };
 
-const ordenarPrecios = (data) => {
-	return [...data].sort((a, b) => {
-		if (a.Precio < b.Precio) return -1;
-		if (a.Precio > b.Precio) return 1;
-		return 0;
-	});
-};
-
 const precioMasBajo = (data) => {
 	if (data === null) return { price: "0,00 €", text: "" };
 	const first = ordenarPrecios(data)[0];
 	return {
-		price: euroFormatter(first.Precio),
+		price: first.Precio,
 		text: `de ${first.Hora} a ${incrementarHora(first.Hora)}`,
 	};
 };
@@ -86,8 +84,21 @@ const precioMasAlto = (data) => {
 	if (data === null) return { price: "0,00 €", text: "" };
 	const last = ordenarPrecios(data)[data.length - 1];
 	return {
-		price: euroFormatter(last.Precio),
+		price: last.Precio,
 		text: `de ${last.Hora} a ${incrementarHora(last.Hora)}`,
+	};
+};
+
+const precioMedio = (data) => {
+	if (data === null) return { price: "0,00 €", text: "" };
+	const totalPrecio = data.reduce(
+		(accumulator, currentValue) => accumulator + currentValue.Precio,
+		0
+	);
+	console.log(totalPrecio);
+	return {
+		price: totalPrecio / data.length,
+		text: "",
 	};
 };
 
@@ -98,11 +109,17 @@ export default function App() {
 	const [data, setData] = useState(null);
 	const [lowPrice, setLowPrice] = useState({ price: "0.00 €", text: "" });
 	const [hightPrice, setHightPrice] = useState({ price: "0.00 €", text: "" });
+	const [middlePrice, setMiddletPrice] = useState({
+		price: "0.00 €",
+		text: "",
+	});
 	const [dataFiltered, setDataFiltered] = useState(null);
 	const [date, setDate] = useState({
 		startDate: new Date().toISOString().split("T")[0],
 		endDate: new Date().toISOString().split("T")[0],
 	});
+
+	const numDigits = unity === "kWh" ? 5 : 2;
 
 	useEffect(() => {
 		pedirDatos(date.startDate).then((data) => setData(data));
@@ -113,6 +130,7 @@ export default function App() {
 		setDataFiltered(dataFiltered);
 		setLowPrice(precioMasBajo(dataFiltered));
 		setHightPrice(precioMasAlto(dataFiltered));
+		setMiddletPrice(precioMedio(dataFiltered));
 	}, [data, unity, province]);
 
 	const handleChangeDate = (selectedDate) => {
@@ -182,6 +200,30 @@ export default function App() {
 						</Flex>
 					</Card>
 				</Grid>
+				<Grid numColsLg={3} className="mt-6 gap-6">
+					<PriceCard
+						icon={ArrowSmDownIcon}
+						title={`Precio más bajo del ${unity}`}
+						price={euroFormatter(lowPrice?.price, numDigits, numDigits)}
+						text={lowPrice?.text}
+						color="green"
+					/>
+					<PriceCard
+						icon={MinusIcon}
+						title={`Precio medio del ${unity}`}
+						price={euroFormatter(middlePrice?.price, numDigits, numDigits)}
+						text={middlePrice?.text}
+						color="amber"
+					/>
+					<PriceCard
+						icon={ArrowSmUpIcon}
+						title={`Precio más alto del ${unity}`}
+						price={euroFormatter(hightPrice?.price, numDigits, numDigits)}
+						text={hightPrice?.text}
+						color="red"
+					/>
+				</Grid>
+
 				<TabList
 					defaultValue="1"
 					onValueChange={(value) => setSelectedView(value)}
@@ -193,31 +235,37 @@ export default function App() {
 
 				{selectedView === "1" ? (
 					<>
-						<Grid numColsLg={2} className="mt-6 gap-6">
-							<PriceCard
-								icon={ArrowSmDownIcon}
-								title={`Precio más bajo del ${unity}`}
-								price={lowPrice?.price}
-								text={lowPrice?.text}
-								color="green"
-							/>
-							<PriceCard
-								icon={ArrowSmUpIcon}
-								title={`Precio más alto del ${unity}`}
-								price={hightPrice?.price}
-								text={hightPrice?.text}
-								color="red"
-							/>
-						</Grid>
-
-						<div className="mt-6">
-							<ChartView data={dataFiltered} />
-						</div>
+						<AreaChart
+							data={dataFiltered}
+							index="Hora"
+							categories={["Precio"]}
+							colors={["blue"]}
+							valueFormatter={euroFormatter}
+							showLegend={false}
+							className="mt-6"
+						/>
 					</>
 				) : (
-					<Card className="mt-6">
-						<div className="h-96" />
-					</Card>
+					<Table className="mt-6">
+						<TableHead>
+							<TableRow>
+								<TableHeaderCell>Hora</TableHeaderCell>
+								<TableHeaderCell className="text-right">{`Precio ${unity}`}</TableHeaderCell>
+							</TableRow>
+						</TableHead>
+						<TableBody>
+							{colorearPrecios(dataFiltered).map((item) => (
+								<TableRow key={item.Hora} className={item.Color}>
+									<TableCell>{`de ${item.Hora} a ${incrementarHora(
+										item.Hora
+									)}`}</TableCell>
+									<TableCell className="text-right">
+										{euroFormatter(item.Precio, numDigits, numDigits)}
+									</TableCell>
+								</TableRow>
+							))}
+						</TableBody>
+					</Table>
 				)}
 			</main>
 		</>

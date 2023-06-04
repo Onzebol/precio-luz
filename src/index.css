@@ -16,6 +16,8 @@
 	padding-bottom: 0.5rem;
 	border-radius: 0.375rem;
 	font-weight: 500;
+	outline-color: rgba(191, 219, 254, 1);
+	outline-offset: 2px;
 }
 
 #inputDate:hover {
@@ -24,4 +26,16 @@
 
 #inputDate + button {
 	display: none;
+}
+
+div:has(> #inputDate)::before {
+	content: url("data:image/svg+xml,%3Csvg%20class%3D%22h-5%20w-5%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20fill%3D%22none%22%20viewBox%3D%220%200%2024%2024%22%20stroke-width%3D%221.5%22%20stroke%3D%22%239ca3af%22%3E%3Cpath%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%20d%3D%22M6.75%203v2.25M17.25%203v2.25M3%2018.75V7.5a2.25%202.25%200%20012.25-2.25h13.5A2.25%202.25%200%200121%207.5v11.25m-18%200A2.25%202.25%200%20005.25%2021h13.5A2.25%202.25%200%200021%2018.75m-18%200v-7.5A2.25%202.25%200%20015.25%209h13.5A2.25%202.25%200%200121%2011.25v7.5m-9-6h.008v.008H12v-.008zM12%2015h.008v.008H12V15zm0%202.25h.008v.008H12v-.008zM9.75%2015h.008v.008H9.75V15zm0%202.25h.008v.008H9.75v-.008zM7.5%2015h.008v.008H7.5V15zm0%202.25h.008v.008H7.5v-.008zm6.75-4.5h.008v.008h-.008v-.008zm0%202.25h.008v.008h-.008V15zm0%202.25h.008v.008h-.008v-.008zm2.25-4.5h.008v.008H16.5v-.008zm0%202.25h.008v.008H16.5V15z%22%3E%3C%2Fpath%3E%3C%2Fsvg%3E");
+	height: 1.25rem;
+	width: 1.24rem;
+	display: block;
+	height: 100%;
+	position: absolute;
+	right: 8px;
+	top: 8px;
+	z-index: 1;
 }
