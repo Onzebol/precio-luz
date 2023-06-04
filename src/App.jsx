@@ -72,7 +72,7 @@ const filterData = (data, province, unity) => {
 };
 
 const precioMasBajo = (data) => {
-	if (data === null) return { price: 0, text: "" };
+	if (data === null) return { price: null, text: "" };
 	const first = ordenarPrecios(data)[0];
 	return {
 		price: first.Precio,
@@ -81,7 +81,7 @@ const precioMasBajo = (data) => {
 };
 
 const precioMasAlto = (data) => {
-	if (data === null) return { price: 0, text: "" };
+	if (data === null) return { price: null, text: "" };
 	const last = ordenarPrecios(data)[data.length - 1];
 	return {
 		price: last.Precio,
@@ -90,7 +90,7 @@ const precioMasAlto = (data) => {
 };
 
 const precioMedio = (data) => {
-	if (data === null) return { price: 0, text: "" };
+	if (data === null) return { price: null, text: "" };
 	const totalPrecio = data.reduce(
 		(accumulator, currentValue) => accumulator + currentValue.Precio,
 		0
