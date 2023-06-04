@@ -72,7 +72,7 @@ const filterData = (data, province, unity) => {
 };
 
 const precioMasBajo = (data) => {
-	if (data === null) return { price: "0,00 €", text: "" };
+	if (data === null) return { price: 0, text: "" };
 	const first = ordenarPrecios(data)[0];
 	return {
 		price: first.Precio,
@@ -81,7 +81,7 @@ const precioMasBajo = (data) => {
 };
 
 const precioMasAlto = (data) => {
-	if (data === null) return { price: "0,00 €", text: "" };
+	if (data === null) return { price: 0, text: "" };
 	const last = ordenarPrecios(data)[data.length - 1];
 	return {
 		price: last.Precio,
@@ -90,12 +90,11 @@ const precioMasAlto = (data) => {
 };
 
 const precioMedio = (data) => {
-	if (data === null) return { price: "0,00 €", text: "" };
+	if (data === null) return { price: 0, text: "" };
 	const totalPrecio = data.reduce(
 		(accumulator, currentValue) => accumulator + currentValue.Precio,
 		0
 	);
-	console.log(totalPrecio);
 	return {
 		price: totalPrecio / data.length,
 		text: "",
@@ -107,12 +106,9 @@ export default function App() {
 	const [province, setProvince] = useState("PCB");
 	const [selectedView, setSelectedView] = useState("1");
 	const [data, setData] = useState(null);
-	const [lowPrice, setLowPrice] = useState({ price: "0.00 €", text: "" });
-	const [hightPrice, setHightPrice] = useState({ price: "0.00 €", text: "" });
-	const [middlePrice, setMiddletPrice] = useState({
-		price: "0.00 €",
-		text: "",
-	});
+	const [lowPrice, setLowPrice] = useState({ price: "", text: "" });
+	const [hightPrice, setHightPrice] = useState({ price: "", text: "" });
+	const [middlePrice, setMiddletPrice] = useState({ price: "", text: "" });
 	const [dataFiltered, setDataFiltered] = useState(null);
 	const [date, setDate] = useState({
 		startDate: new Date().toISOString().split("T")[0],
@@ -204,21 +200,21 @@ export default function App() {
 					<PriceCard
 						icon={ArrowSmDownIcon}
 						title={`Precio más bajo del ${unity}`}
-						price={euroFormatter(lowPrice?.price, numDigits, numDigits)}
+						price={euroFormatter(lowPrice.price, numDigits, numDigits)}
 						text={lowPrice?.text}
 						color="green"
 					/>
 					<PriceCard
 						icon={MinusIcon}
 						title={`Precio medio del ${unity}`}
-						price={euroFormatter(middlePrice?.price, numDigits, numDigits)}
+						price={euroFormatter(middlePrice.price, numDigits, numDigits)}
 						text={middlePrice?.text}
 						color="amber"
 					/>
 					<PriceCard
 						icon={ArrowSmUpIcon}
 						title={`Precio más alto del ${unity}`}
-						price={euroFormatter(hightPrice?.price, numDigits, numDigits)}
+						price={euroFormatter(hightPrice.price, numDigits, numDigits)}
 						text={hightPrice?.text}
 						color="red"
 					/>
