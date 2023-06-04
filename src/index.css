@@ -39,3 +39,7 @@ div:has(> #inputDate)::before {
 	top: 8px;
 	z-index: 1;
 }
+
+.tremor-Table-table .tremor-Badge-root {
+	background-color: white;
+}

@@ -1,3 +1,9 @@
+import {
+	ArrowSmDownIcon,
+	ArrowSmRightIcon,
+	ArrowSmUpIcon,
+} from "@heroicons/react/outline";
+
 export const euroFormatter = (value, minDigits = 2, maxDigits = 5) => {
 	if (value === null) return "- €";
 	return `${Intl.NumberFormat("es-ES", {
@@ -22,6 +28,31 @@ export const ordenarPrecios = (data) => {
 		if (a.Precio > b.Precio) return 1;
 		return 0;
 	});
+};
+
+export const periodoPeaje = (value, fecha, province) => {
+	const hora = parseInt(value.split(":")[0]);
+	const dayOfWeek = fecha.getDay();
+	const isWeekend = dayOfWeek === 6 || dayOfWeek === 0;
+	if (isWeekend) return pediodos.valle;
+	if (province === "CYM") {
+		if ([0, 1, 2, 3, 4, 5, 6, 7].indexOf(hora) !== -1) return pediodos.valle;
+		if ([8, 9, 10, 15, 16, 17, 18, 23].indexOf(hora) !== -1)
+			return pediodos.llano;
+		if ([11, 12, 13, 14, 19, 20, 21, 22].indexOf(hora) !== -1)
+			return pediodos.punta;
+	}
+	if ([0, 1, 2, 3, 4, 5, 6, 7].indexOf(hora) !== -1) return pediodos.valle;
+	if ([8, 9, 14, 15, 16, 17, 22, 23].indexOf(hora) !== -1)
+		return pediodos.llano;
+	if ([10, 11, 12, 13, 18, 19, 20, 21].indexOf(hora) !== -1)
+		return pediodos.punta;
+};
+
+export const pediodos = {
+	valle: { icon: ArrowSmDownIcon, text: "Periodo valle", color: "green" },
+	llano: { icon: ArrowSmRightIcon, text: "Periodo llano", color: "amber" },
+	punta: { icon: ArrowSmUpIcon, text: "Periodo punta", color: "red" },
 };
 
 export const colorearPrecios = (data) => {
