@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import {
 	AreaChart,
+	Badge,
+	BadgeDelta,
 	Card,
 	Dropdown,
 	DropdownItem,
@@ -34,6 +36,7 @@ import {
 	euroFormatter,
 	incrementarHora,
 	ordenarPrecios,
+	periodoPeaje,
 } from "./utils";
 
 const pedirDatos = (date) => {
@@ -158,7 +161,7 @@ export default function App() {
 									asSingle={true}
 									useRange={false}
 									minDate={new Date("2014-03-31")}
-									maxDate={new Date().toISOString().split("T")[0]}
+									maxDate={new Date()}
 								/>
 							</div>
 						</Flex>
@@ -247,6 +250,9 @@ export default function App() {
 							<TableRow>
 								<TableHeaderCell>Hora</TableHeaderCell>
 								<TableHeaderCell className="text-right">{`Precio ${unity}`}</TableHeaderCell>
+								<TableHeaderCell className="text-right">
+									Periodo
+								</TableHeaderCell>
 							</TableRow>
 						</TableHead>
 						<TableBody>
@@ -257,6 +263,33 @@ export default function App() {
 									)}`}</TableCell>
 									<TableCell className="text-right">
 										{euroFormatter(item.Precio, numDigits, numDigits)}
+									</TableCell>
+									<TableCell className="text-right">
+										<Badge
+											icon={
+												periodoPeaje(
+													item.Hora,
+													new Date(date.startDate),
+													province
+												).icon
+											}
+											size="xs"
+											color={
+												periodoPeaje(
+													item.Hora,
+													new Date(date.startDate),
+													province
+												).color
+											}
+										>
+											{
+												periodoPeaje(
+													item.Hora,
+													new Date(date.startDate),
+													province
+												).text
+											}
+										</Badge>
 									</TableCell>
 								</TableRow>
 							))}
