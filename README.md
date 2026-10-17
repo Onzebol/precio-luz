@@ -11,6 +11,7 @@ Aplicación web que muestra el precio horario de la luz en España (tarifa PVPC)
 - Selector de duración (1, 2, 3, 4, 6 u 8 horas): indica a qué hora empezar algo que dura ese tiempo (lavadora, lavavajillas, carga del coche…) para pagar el precio medio más bajo, y lo marca en el gráfico.
 - Gráfico de barras con el precio de cada hora, coloreado según sea bajo, medio o alto, y con los periodos de peaje (valle, llano y punta) desde junio de 2021, cuando empezó la tarifa 2.0TD.
 - Tabla hora a hora con el precio, el nivel y el periodo de cada hora.
+- Precio de la potencia contratada (P1 y P2) del año en curso: peajes, cargos y margen de comercialización, por año y por día, con un ejemplo mensual y enlaces a las normas del BOE.
 - Selección de cualquier día desde el 01/04/2014 (primer día con PVPC publicado) hasta mañana, con el calendario, con los botones de día anterior y día siguiente o con el teclado (<kbd>←</kbd> y <kbd>→</kbd> cambian de día, <kbd>H</kbd> vuelve a hoy). Red Eléctrica publica los precios del día siguiente hacia las 20:15; cuando ya están disponibles, aparece un botón «Ver los precios de mañana».
 - Selección de zona: Península, Canarias y Baleares, o Ceuta y Melilla.
 - Precios en €/kWh o €/MWh.
