@@ -9,7 +9,8 @@
 // Con --solo-resumen no descarga nada y no necesita la API key.
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { StringToNumerLocale } from "../src/utils.js";
+import { parseISO } from "date-fns";
+import { INICIO_2_0TD, StringToNumerLocale, periodoPeaje } from "../src/utils.js";
 
 const FECHA_MINIMA = "2014-04-01";
 const CARPETA = join(import.meta.dirname, "..", "public", "datos");
@@ -137,6 +138,22 @@ const perfilMes = (dias) =>
 		})
 	);
 
+// Precio medio de las horas de punta, llano y valle del mes (periodos de la 2.0TD; no
+// contempla festivos nacionales, como en la web)
+const mediasPeriodo = (dias, zona) => {
+	const sumas = { punta: 0, llano: 0, valle: 0 };
+	const cuentas = { punta: 0, llano: 0, valle: 0 };
+	for (const [fecha, precios] of Object.entries(dias)) {
+		precios.forEach((hora, indice) => {
+			const reloj = `${String(horaReloj(precios, indice)).padStart(2, "0")}:00`;
+			const { clave } = periodoPeaje(reloj, parseISO(fecha), zona);
+			sumas[clave] += hora[zona];
+			cuentas[clave]++;
+		});
+	}
+	return ["punta", "llano", "valle"].map((clave) => redondear(sumas[clave] / cuentas[clave]));
+};
+
 // Se recalcula entero a partir de los meses: así siempre cuadra con ellos.
 // Un día y un mes por línea, como en los ficheros mensuales
 const escribirResumen = async (meses) => {
@@ -155,13 +172,16 @@ const escribirResumen = async (meses) => {
 		join(CARPETA, "resumen.json"),
 		`{\n"dias":{\n${dias.join(",\n")}\n},\n"perfiles":{\n${perfiles.join(",\n")}\n}\n}\n`
 	);
-	// Versión mínima para la vista de día (unos 4 KB): media de cada mes por zona,
-	// [PCB, CYM], calculada como la media de las medias diarias
+	// Versión mínima para la vista de día (unos 6 KB): media de cada mes por zona,
+	// [PCB, CYM], calculada como la media de las medias diarias. Desde la tarifa 2.0TD
+	// siguen las medias de punta, llano y valle de PCB y luego de CYM (para la calculadora)
 	const medias = conDias.map((mes) => {
 		const diarias = Object.values(meses[mes]).map(resumirDia);
 		const media = (posicion) =>
 			redondear(diarias.reduce((suma, dia) => suma + dia[posicion], 0) / diarias.length);
-		return `${JSON.stringify(mes)}:${JSON.stringify([media(0), media(5)])}`;
+		const valores = [media(0), media(5)];
+		if (`${mes}-01` >= INICIO_2_0TD) valores.push(...ZONAS.flatMap((zona) => mediasPeriodo(meses[mes], zona)));
+		return `${JSON.stringify(mes)}:${JSON.stringify(valores)}`;
 	});
 	await writeFile(join(CARPETA, "medias.json"), `{\n${medias.join(",\n")}\n}\n`);
 };

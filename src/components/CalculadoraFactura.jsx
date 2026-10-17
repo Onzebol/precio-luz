@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { parseISO } from "date-fns";
-import { FUENTES_FACTURA, estimarFactura } from "../factura";
+import { FUENTES_FACTURA, PERIODOS, estimarFactura } from "../factura";
 import { hoy } from "../utils";
 
 const euros = (valor) =>
@@ -17,7 +17,8 @@ const campo =
 	"block max-w-full rounded-md border border-linea bg-white/60 px-3 py-1.5 font-medium text-tinta hover:bg-white focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta";
 
 // Factura aproximada de un mes del año en curso con los precios reales de ese mes.
-// medias: { "AAAA-MM": [PCB, CYM] } en €/MWh (datos/medias.json)
+// medias: { "AAAA-MM": [PCB, CYM, punta, llano, valle de PCB, ídem de CYM] } en €/MWh
+// (datos/medias.json; los periodos solo existen desde la tarifa 2.0TD)
 export function CalculadoraFactura({ medias, zona }) {
 	const actual = hoy().slice(0, 7);
 	// Meses del año en curso con precios; el mes actual solo si no hay otro (aún va por la mitad)
@@ -27,25 +28,33 @@ export function CalculadoraFactura({ medias, zona }) {
 	const completos = meses.filter((mes) => mes < actual);
 	const [mes, setMes] = useState((completos.length ? completos : meses).at(-1));
 	const [potencia, setPotencia] = useState("3,45");
-	const [consumo, setConsumo] = useState("250");
+	// Un reparto habitual en un hogar: casi la mitad del consumo en valle
+	const [consumo, setConsumo] = useState({ punta: "70", llano: "70", valle: "110" });
 
-	// Admite coma decimal, como se escribe en español
-	const numero = (texto) => Number(String(texto).replace(",", "."));
+	// Admite coma decimal, como se escribe en español; vacío cuenta como 0
+	const numero = (texto) => Number(String(texto).replace(",", ".") || 0);
 	const potenciaKw = numero(potencia);
-	const consumoKwh = numero(consumo);
-	const valido = potenciaKw > 0 && potenciaKw <= 15 && consumoKwh >= 0 && mes;
-	const precioMedioKwh = mes ? medias[mes][zona === "CYM" ? 1 : 0] / 1000 : 0;
-	const factura = valido
-		? estimarFactura({ mes, potenciaKw, consumoKwh, precioMedioKwh })
-		: null;
+	const consumos = Object.fromEntries(PERIODOS.map((p) => [p, numero(consumo[p])]));
+	const valido =
+		potenciaKw > 0 && potenciaKw <= 15 && PERIODOS.every((p) => consumos[p] >= 0) && mes;
+	// Posición de punta, llano y valle de la zona en medias.json
+	const inicio = zona === "CYM" ? 5 : 2;
+	const preciosKwh = Object.fromEntries(
+		PERIODOS.map((p, i) => [p, mes ? medias[mes][inicio + i] / 1000 : 0])
+	);
+	const factura = valido ? estimarFactura({ mes, potenciaKw, consumos, preciosKwh }) : null;
+	// kWh sin decimales sobrantes; precios siempre con 3
+	const kwh = (valor) => valor.toLocaleString("es-ES", { maximumFractionDigits: 3 });
+	const precioKwh = (valor) =>
+		valor.toLocaleString("es-ES", { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 
 	const filas = factura && [
 		["Potencia", factura.potencia, `${potencia} kW durante ${factura.dias} días`],
-		[
-			"Energía",
-			factura.energia,
-			`${consumo} kWh a ${precioMedioKwh.toLocaleString("es-ES", { maximumFractionDigits: 3 })} €/kWh de media`,
-		],
+		...PERIODOS.map((p) => [
+			`Energía en ${p}`,
+			factura.energias[p],
+			`${kwh(consumos[p])} kWh a ${precioKwh(preciosKwh[p])} €/kWh de media`,
+		]),
 		["Financiación del bono social", factura.bonoSocial, null],
 		[
 			"Impuesto eléctrico",
@@ -69,7 +78,8 @@ export function CalculadoraFactura({ medias, zona }) {
 			<div className="mt-4 max-w-2xl">
 				<p>
 					Estimación de una factura mensual del PVPC con los precios reales del mes, la
-					potencia y los impuestos vigentes cada día.
+					potencia y los impuestos vigentes cada día. El consumo de punta, llano y valle
+					viene desglosado en la factura.
 				</p>
 				<form
 					className="mt-4 flex flex-wrap items-end gap-x-6 gap-y-4"
@@ -107,25 +117,35 @@ export function CalculadoraFactura({ medias, zona }) {
 							className={`${campo} w-32`}
 						/>
 					</div>
-					<div>
-						<label htmlFor="factura-consumo" className={etiqueta}>
-							Consumo del mes (kWh)
-						</label>
-						<input
-							id="factura-consumo"
-							type="text"
-							inputMode="decimal"
-							autoComplete="off"
-							value={consumo}
-							onChange={(event) => setConsumo(event.target.value)}
-							className={`${campo} w-32`}
-						/>
-					</div>
+					{/* Como en la factura: el consumo de cada periodo por separado */}
+					<fieldset className="basis-full">
+						<legend className={etiqueta}>Consumo del mes (kWh)</legend>
+						<div className="flex flex-wrap gap-x-4 gap-y-3">
+							{PERIODOS.map((p) => (
+								<div key={p}>
+									<label htmlFor={`factura-${p}`} className="mb-1 block text-sm first-letter:uppercase">
+										{p}
+									</label>
+									<input
+										id={`factura-${p}`}
+										type="text"
+										inputMode="decimal"
+										autoComplete="off"
+										value={consumo[p]}
+										onChange={(event) =>
+											setConsumo((anterior) => ({ ...anterior, [p]: event.target.value }))
+										}
+										className={`${campo} w-24`}
+									/>
+								</div>
+							))}
+						</div>
+					</fieldset>
 				</form>
 
 				{!valido && (
 					<p className="mt-4 text-caro-intenso">
-						Escribe una potencia entre 0 y 15 kW y un consumo en kWh.
+						Escribe una potencia entre 0 y 15 kW y el consumo de cada periodo en kWh.
 					</p>
 				)}
 
@@ -154,10 +174,11 @@ export function CalculadoraFactura({ medias, zona }) {
 							</tbody>
 						</table>
 						<p className="mt-4 text-sm text-suave">
-							Es una aproximación: la energía se valora al precio medio del mes, así que
-							si consumes más en las horas caras pagarás algo más (y menos si consumes en
-							las baratas). Supone la misma potencia en P1 y P2 y no incluye los
-							descuentos del bono social.
+							Es una aproximación: el consumo de cada periodo se valora al precio medio de
+							ese periodo en el mes, así que dentro de cada uno pagarás algo más si
+							consumes en sus horas caras. Supone la misma potencia en P1 y P2, no tiene
+							en cuenta los festivos (todo el día es valle) y no incluye los descuentos
+							del bono social.
 							{mes === actual && " El mes en curso usa el precio medio de los días que van."}
 						</p>
 						<ul className="mt-2 space-y-1 text-sm text-suave">

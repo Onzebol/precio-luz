@@ -62,18 +62,24 @@ const diasDelMes = (mes) => {
 	return Array.from({ length: total }, (_, i) => `${mes}-${String(i + 1).padStart(2, "0")}`);
 };
 
-// Factura estimada de un mes. La energía se valora al precio medio del mes (€/kWh):
-// quien consume más en horas caras pagará algo más. Cada concepto se calcula día a día
-// con los valores vigentes ese día y se suma
-export const estimarFactura = ({ mes, potenciaKw, consumoKwh, precioMedioKwh }) => {
+export const PERIODOS = ["punta", "llano", "valle"];
+
+// Factura estimada de un mes. El consumo de cada periodo (kWh) se valora al precio medio
+// de ese periodo en el mes (€/kWh): dentro de un periodo, quien consume más en sus horas
+// caras pagará algo más. Cada concepto se calcula día a día con los valores vigentes ese
+// día y se suma
+export const estimarFactura = ({ mes, potenciaKw, consumos, preciosKwh }) => {
 	const dias = diasDelMes(mes);
 	const potencia = potenciaDe(Number(mes.slice(0, 4)));
 	const total = { potencia: 0, energia: 0, bonoSocial: 0, impuesto: 0, contador: 0, iva: 0 };
-	const consumoDia = consumoKwh / dias.length;
+	const energias = Object.fromEntries(
+		PERIODOS.map((periodo) => [periodo, consumos[periodo] * preciosKwh[periodo]])
+	);
+	const consumoDia = PERIODOS.reduce((suma, periodo) => suma + consumos[periodo], 0) / dias.length;
 	let minimoAplicado = false;
 	for (const dia of dias) {
 		const potenciaDia = (potenciaKw * (potencia.total.p1 + potencia.total.p2)) / 365;
-		const energiaDia = consumoDia * precioMedioKwh;
+		const energiaDia = PERIODOS.reduce((suma, periodo) => suma + energias[periodo], 0) / dias.length;
 		const bonoDia = vigente(BONO_SOCIAL, dia).anual / 365;
 		const impuestoPorcentaje =
 			vigente(IMPUESTO_ELECTRICO, dia).tipo * (potenciaDia + energiaDia + bonoDia);
@@ -93,6 +99,7 @@ export const estimarFactura = ({ mes, potenciaKw, consumoKwh, precioMedioKwh }) 
 	return {
 		...total,
 		total: Object.values(total).reduce((suma, valor) => suma + valor, 0),
+		energias,
 		dias: dias.length,
 		// El impuesto eléctrico no llegaba a 1 €/MWh y se cobró ese mínimo (algún día o todos)
 		minimoAplicado,
