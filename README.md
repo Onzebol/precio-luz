@@ -7,7 +7,7 @@ Aplicación web que muestra el precio horario de la luz en España (tarifa PVPC)
 ## Funcionalidades
 
 - Las tres horas seguidas más baratas del día, destacadas al abrir la página.
-- Precio de la hora actual, el más bajo, el medio y el más alto del día.
+- Precio de la hora actual, el más bajo, el medio y el más alto del día, y cómo es la media del día frente a lo habitual en ese mes (el mismo mes de los años anteriores con la misma forma de cálculo del precio).
 - Selector de duración (1, 2, 3, 4, 6 u 8 horas): indica a qué hora empezar algo que dura ese tiempo (lavadora, lavavajillas, carga del coche…) para pagar el precio medio más bajo, y lo marca en el gráfico.
 - Gráfico de barras con el precio de cada hora, coloreado según sea bajo, medio o alto, y con los periodos de peaje (valle, llano y punta) desde junio de 2021, cuando empezó la tarifa 2.0TD.
 - Tabla hora a hora con el precio, el nivel y el periodo de cada hora.
@@ -86,3 +86,5 @@ En cada ejecución el script regenera también `public/datos/resumen.json`, con 
 
 - `dias`: por día, para PCB y luego CYM, el precio medio, el mínimo, el máximo y la hora (0-23) del mínimo y del máximo, en €/MWh.
 - `perfiles`: por mes y zona, el precio medio de cada hora del reloj.
+
+También genera `public/datos/medias.json` (unos 4 KB), solo con la media de cada mes por zona, que es lo que necesita la comparación con lo habitual de la vista de día.

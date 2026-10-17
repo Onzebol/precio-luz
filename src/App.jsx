@@ -4,6 +4,7 @@ import { Controles } from "./components/Controles";
 import { SelectorDuracion } from "./components/SelectorDuracion";
 import { FranjaCargando, FranjaHoras } from "./components/FranjaHoras";
 import { TablaHoras } from "./components/TablaHoras";
+import { compararConHabitual, pedirMedias } from "./comparativas";
 import {
 	DURACIONES,
 	desplazarDia,
@@ -151,6 +152,59 @@ const fraseMasBarata = (fecha, tramo) => {
 	return `El ${diaYMes(fecha)} la luz estuvo más barata ${rango}`;
 };
 
+const listaAnios = (anios) =>
+	new Intl.ListFormat("es-ES", { type: "conjunction" }).format(anios.map(String));
+
+// "La media del día es un 23 % más baja que la de octubre en 2024 y 2025 (0,187 €/kWh)."
+const fraseHabitual = (comparacion, fecha, unidad) => {
+	const mes = new Intl.DateTimeFormat("es-ES", { month: "long" }).format(parseISO(fecha));
+	const referencia = `${formatearPrecio(
+		unidad === "MWh" ? comparacion.media : comparacion.media / 1000,
+		unidad
+	)}/${unidad}`;
+	const anios = listaAnios(comparacion.anios);
+	const porcentaje = Math.round(Math.abs(comparacion.diferencia) * 100);
+	const comparado = {
+		igual: <>está en línea con la de {mes}</>,
+		barato: (
+			<>
+				es <strong>un {porcentaje} % más baja</strong> que la de {mes}
+			</>
+		),
+		// A partir del doble, «6,9 veces» se entiende mejor que «un 589 % más alta»
+		caro:
+			comparacion.diferencia >= 1 ? (
+				<>
+					es{" "}
+					<strong>
+						{new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1 }).format(
+							1 + comparacion.diferencia
+						)}{" "}
+						veces
+					</strong>{" "}
+					la de {mes}
+				</>
+			) : (
+				<>
+					es <strong>un {porcentaje} % más alta</strong> que la de {mes}
+				</>
+			),
+	}[comparacion.tendencia];
+	return (
+		<>
+			La media del día {comparado} en {anios} ({referencia}).
+			{comparacion.cambio && (
+				<span className="text-suave">
+					{" "}
+					Ojo: desde el {diaYMes(comparacion.cambio.fecha)} de{" "}
+					{comparacion.cambio.fecha.slice(0, 4)} el precio se calcula de otra forma:{" "}
+					{comparacion.cambio.titulo}.
+				</span>
+			)}
+		</>
+	);
+};
+
 function Dato({ etiqueta, precio, unidad, detalle }) {
 	// "0,091 €" -> "0,091", la unidad se pinta aparte y más pequeña
 	const numero = formatearPrecio(precio, unidad).replace(/\s*€$/, "");
@@ -259,6 +313,18 @@ export default function App() {
 	// Mientras se ve el día de hoy, comprueba si ya están publicados los precios de mañana
 	// (Red Eléctrica los publica hacia las 20:15). Si aún no están, espera a las 20:15
 	// y a partir de ahí reintenta cada 10 minutos
+	// Media de cada mes, para comparar el día con lo habitual. Si no llega, simplemente no se compara
+	const [medias, setMedias] = useState(null);
+	useEffect(() => {
+		let vigente = true;
+		pedirMedias()
+			.then((datos) => vigente && setMedias(datos))
+			.catch(() => {});
+		return () => {
+			vigente = false;
+		};
+	}, []);
+
 	const [hayManana, setHayManana] = useState(false);
 	useEffect(() => {
 		if (fecha !== hoy()) return;
@@ -302,6 +368,16 @@ export default function App() {
 		: null;
 	const tramo = hayPrecios ? tramoMasBarato(precios) : null;
 	const bloque = hayPrecios && duracion ? mejorBloque(precios, duracion) : null;
+	// Las medias mensuales están en €/MWh
+	const comparacion =
+		hayPrecios && medias
+			? compararConHabitual(
+					medias,
+					fechaMostrada,
+					zona,
+					unidad === "MWh" ? media : media * 1000
+				)
+			: null;
 
 	const esHoy = fecha === hoy();
 	const horaActual = new Date().getHours();
@@ -469,6 +545,11 @@ export default function App() {
 										detalle={rangoHoras(maximo.Hora, incrementarHora(maximo.Hora))}
 									/>
 								</dl>
+							{comparacion && (
+								<p className="mt-6 max-w-prose">
+									{fraseHabitual(comparacion, fechaMostrada, unidad)}
+								</p>
+							)}
 		
 								<SelectorDuracion
 									duracion={duracion}

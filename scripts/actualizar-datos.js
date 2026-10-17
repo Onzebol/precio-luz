@@ -155,6 +155,15 @@ const escribirResumen = async (meses) => {
 		join(CARPETA, "resumen.json"),
 		`{\n"dias":{\n${dias.join(",\n")}\n},\n"perfiles":{\n${perfiles.join(",\n")}\n}\n}\n`
 	);
+	// Versión mínima para la vista de día (unos 4 KB): media de cada mes por zona,
+	// [PCB, CYM], calculada como la media de las medias diarias
+	const medias = conDias.map((mes) => {
+		const diarias = Object.values(meses[mes]).map(resumirDia);
+		const media = (posicion) =>
+			redondear(diarias.reduce((suma, dia) => suma + dia[posicion], 0) / diarias.length);
+		return `${JSON.stringify(mes)}:${JSON.stringify([media(0), media(5)])}`;
+	});
+	await writeFile(join(CARPETA, "medias.json"), `{\n${medias.join(",\n")}\n}\n`);
 };
 
 const meses = await leerMeses();
