@@ -1,13 +1,12 @@
-import { addDays, format, parseISO } from "date-fns";
+import { desplazarDia } from "../utils";
 
-const desplazarDia = (fecha, dias) => format(addDays(parseISO(fecha), dias), "yyyy-MM-dd");
-
-function BotonDia({ etiqueta, deshabilitado, onClick, children }) {
+function BotonDia({ etiqueta, atajo, deshabilitado, onClick, children }) {
 	return (
 		<button
 			type="button"
 			aria-label={etiqueta}
-			title={etiqueta}
+			aria-keyshortcuts={atajo.tecla}
+			title={`${etiqueta} (${atajo.texto})`}
 			disabled={deshabilitado}
 			onClick={onClick}
 			className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-md border border-linea bg-white/60 text-tinta hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/60 ${anillo}`}
@@ -66,6 +65,7 @@ export function Controles({
 				<div className="flex gap-1">
 					<BotonDia
 						etiqueta="Día anterior"
+						atajo={{ tecla: "ArrowLeft", texto: "tecla ←" }}
 						deshabilitado={fecha <= fechaMinima}
 						onClick={() => onFecha(desplazarDia(fecha, -1))}
 					>
@@ -84,6 +84,7 @@ export function Controles({
 					/>
 					<BotonDia
 						etiqueta="Día siguiente"
+						atajo={{ tecla: "ArrowRight", texto: "tecla →" }}
 						deshabilitado={fecha >= fechaMaxima}
 						onClick={() => onFecha(desplazarDia(fecha, 1))}
 					>

@@ -143,6 +143,8 @@ export const mejorBloque = (data, horas) => {
 // Fechas en hora local (toISOString usaría UTC y daría el día anterior de madrugada)
 export const hoy = () => format(new Date(), "yyyy-MM-dd");
 export const manana = () => format(addDays(new Date(), 1), "yyyy-MM-dd");
+export const desplazarDia = (fecha, dias) =>
+	format(addDays(parseISO(fecha), dias), "yyyy-MM-dd");
 
 export const fechaLarga = (fecha) =>
 	new Intl.DateTimeFormat("es-ES", {

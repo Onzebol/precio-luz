@@ -7,6 +7,7 @@ import { TablaHoras } from "./components/TablaHoras";
 import {
 	DURACIONES,
 	StringToNumerLocale,
+	desplazarDia,
 	diaYMes,
 	fechaLarga,
 	formatearPrecio,
@@ -147,6 +148,29 @@ export default function App() {
 	useEffect(() => {
 		escribirParametros(parametros);
 	}, [parametros]);
+
+	// Atajos de teclado: ← y → cambian de día, H vuelve a hoy
+	useEffect(() => {
+		const alPulsar = (event) => {
+			if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey)
+				return;
+			// En campos de formulario (fecha, botones de opción) las flechas ya tienen su función
+			if (event.target.closest("input, select, textarea, [contenteditable]")) return;
+			let cambio = null;
+			if (event.key === "ArrowLeft") cambio = (fecha) => desplazarDia(fecha, -1);
+			if (event.key === "ArrowRight") cambio = (fecha) => desplazarDia(fecha, 1);
+			if (event.key === "h" || event.key === "H") cambio = () => hoy();
+			if (!cambio) return;
+			event.preventDefault();
+			setParametros((anteriores) => {
+				const fecha = cambio(anteriores.fecha);
+				if (fecha < FECHA_MINIMA || fecha > manana()) return anteriores;
+				return { ...anteriores, fecha };
+			});
+		};
+		window.addEventListener("keydown", alPulsar);
+		return () => window.removeEventListener("keydown", alPulsar);
+	}, []);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -375,6 +399,11 @@ export default function App() {
 				<p className="border-t border-linea py-6 text-sm text-suave">
 					Precio del término de energía de la tarifa PVPC (2.0TD) publicado por
 					Red Eléctrica en ESIOS. No incluye impuestos.
+				</p>
+				<p className="hidden pb-6 text-sm text-suave [@media(pointer:fine)]:block">
+					Atajos de teclado: <kbd className="font-sans font-medium">←</kbd> y{" "}
+					<kbd className="font-sans font-medium">→</kbd> cambian de día,{" "}
+					<kbd className="font-sans font-medium">H</kbd> vuelve a hoy.
 				</p>
 			</footer>
 		</div>
