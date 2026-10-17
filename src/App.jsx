@@ -164,6 +164,34 @@ export default function App() {
 		return () => controller.abort();
 	}, [fecha, intento]);
 
+	// Mientras se ve el día de hoy, comprueba si ya están publicados los precios de mañana
+	// (Red Eléctrica los publica hacia las 20:15). Si aún no están, espera a las 20:15
+	// y a partir de ahí reintenta cada 10 minutos
+	const [hayManana, setHayManana] = useState(false);
+	useEffect(() => {
+		if (fecha !== hoy()) return;
+		const controller = new AbortController();
+		let temporizador;
+		const siguienteIntento = () => {
+			const ahora = new Date();
+			const publicacion = new Date(ahora);
+			publicacion.setHours(20, 15, 0, 0);
+			return Math.max(publicacion - ahora, 10 * 60 * 1000);
+		};
+		const comprobar = () =>
+			pedirDatos(manana(), controller.signal)
+				.then(() => setHayManana(true))
+				.catch((error) => {
+					if (error.name === "AbortError") return;
+					temporizador = setTimeout(comprobar, siguienteIntento());
+				});
+		comprobar();
+		return () => {
+			controller.abort();
+			clearTimeout(temporizador);
+		};
+	}, [fecha]);
+
 	// parseISO interpreta "YYYY-MM-DD" en hora local, a diferencia de new Date()
 	const fechaSeleccionada = parseISO(fecha);
 	const precios = useMemo(
@@ -226,7 +254,18 @@ export default function App() {
 			</header>
 
 			<main id="contenido" className="mx-auto max-w-5xl px-4 pb-16 pt-12 sm:px-8 sm:pt-16">
-				<p className="text-suave first-letter:uppercase">{fechaLarga(fecha)}</p>
+				<div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+					<p className="text-suave first-letter:uppercase">{fechaLarga(fecha)}</p>
+					{esHoy && hayManana && (
+						<button
+							type="button"
+							onClick={() => actualizar({ fecha: manana() })}
+							className="rounded-full bg-tinta px-3 py-1 text-sm font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+						>
+							Ver los precios de mañana
+						</button>
+					)}
+				</div>
 				<h1
 					aria-live="polite"
 					className="mt-2 max-w-[18ch] text-balance font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
@@ -245,7 +284,7 @@ export default function App() {
 					<div className="mt-4 max-w-prose">
 						<p>
 							{fecha === manana()
-								? "Red Eléctrica publica los precios del día siguiente hacia las 20:30. Vuelve a mirar después de esa hora."
+								? "Red Eléctrica publica los precios del día siguiente hacia las 20:15. Vuelve a mirar después de esa hora."
 								: "Red Eléctrica no tiene precios publicados para este día. Elige otra fecha."}
 						</p>
 						{!esHoy && (

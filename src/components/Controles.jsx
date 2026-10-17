@@ -1,3 +1,24 @@
+import { addDays, format, parseISO } from "date-fns";
+
+const desplazarDia = (fecha, dias) => format(addDays(parseISO(fecha), dias), "yyyy-MM-dd");
+
+function BotonDia({ etiqueta, deshabilitado, onClick, children }) {
+	return (
+		<button
+			type="button"
+			aria-label={etiqueta}
+			title={etiqueta}
+			disabled={deshabilitado}
+			onClick={onClick}
+			className={`flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-md border border-linea bg-white/60 text-tinta hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/60 ${anillo}`}
+		>
+			<svg aria-hidden="true" viewBox="0 0 20 20" className="h-5 w-5" fill="none">
+				{children}
+			</svg>
+		</button>
+	);
+}
+
 const anillo =
 	"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta";
 
@@ -42,17 +63,33 @@ export function Controles({
 				<label htmlFor="fecha" className="mb-1 block text-sm text-suave">
 					Día
 				</label>
-				<input
-					id="fecha"
-					name="fecha"
-					type="date"
-					autoComplete="off"
-					min={fechaMinima}
-					max={fechaMaxima}
-					value={fecha}
-					onChange={(event) => event.target.value && onFecha(event.target.value)}
-					className={`h-[38px] rounded-md border border-linea bg-white/60 px-3 font-medium text-tinta hover:bg-white ${anillo}`}
-				/>
+				<div className="flex gap-1">
+					<BotonDia
+						etiqueta="Día anterior"
+						deshabilitado={fecha <= fechaMinima}
+						onClick={() => onFecha(desplazarDia(fecha, -1))}
+					>
+						<path d="M12 5l-5 5 5 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+					</BotonDia>
+					<input
+						id="fecha"
+						name="fecha"
+						type="date"
+						autoComplete="off"
+						min={fechaMinima}
+						max={fechaMaxima}
+						value={fecha}
+						onChange={(event) => event.target.value && onFecha(event.target.value)}
+						className={`h-[38px] rounded-md border border-linea bg-white/60 px-3 font-medium text-tinta hover:bg-white ${anillo}`}
+					/>
+					<BotonDia
+						etiqueta="Día siguiente"
+						deshabilitado={fecha >= fechaMaxima}
+						onClick={() => onFecha(desplazarDia(fecha, 1))}
+					>
+						<path d="M8 5l5 5-5 5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+					</BotonDia>
+				</div>
 			</div>
 			<Segmentado
 				leyenda="Zona"

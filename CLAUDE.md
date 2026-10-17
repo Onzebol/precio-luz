@@ -22,13 +22,14 @@ Cada push a `main` dispara `.github/workflows/deploy.yml`, que construye y publi
 
 ## Arquitectura
 
-`src/App.jsx` concentra el estado y la carga de datos; `src/utils.js` contiene helpers puros (formato, fechas, periodos, niveles); `src/components/` tiene las piezas visuales: `Controles` (fecha, zona, unidad; exporta también `Segmentado`, el grupo de botones de opción reutilizable), `SelectorDuracion`, `FranjaHoras` (las 24 barras, protagonista de la página), `TablaHoras` (detalle desplegable).
+`src/App.jsx` concentra el estado y la carga de datos; `src/utils.js` contiene helpers puros (formato, fechas, periodos, niveles); `src/components/` tiene las piezas visuales: `Controles` (fecha con botones de día anterior/siguiente limitados al rango permitido, zona, unidad; exporta también `Segmentado`, el grupo de botones de opción reutilizable), `SelectorDuracion`, `FranjaHoras` (las 24 barras, protagonista de la página), `TablaHoras` (detalle desplegable).
 
 Flujo de datos:
 1. Fecha, zona, unidad y duración se leen de la URL (`?fecha=YYYY-MM-DD&zona=cym&unidad=mwh&duracion=2`) y se reescriben con `history.replaceState`; los valores por defecto (hoy, PCB, kWh, sin duración) no aparecen en la URL.
 2. `pedirDatos(fecha, signal)` llama a `https://api.esios.ree.es/archives/70/download_json?date=YYYY-MM-DD` (API key en la cabecera `x-api-key`, embebida en el cliente) y normaliza `data.PVPC` a `{ Hora: "HH:00", PCB, CYM }`. Los precios llegan como strings con formato español (`"123,45"`) y se convierten con `StringToNumerLocale`. Algunos días antiguos traen solo `GEN` en lugar de `PCB`/`CYM`, de ahí el fallback.
-3. Para días sin publicar (p. ej. mañana antes de ~20:30) la API responde **HTTP 200** con `{"message": "No values for specified archive"}`; se detecta y se lanza `SinDatos`. `estado` puede ser `cargando`, `ok`, `sin-datos` o `error`.
-4. Los precios de la API vienen en €/MWh; para kWh se dividen entre 1000. `formatearPrecio` usa 3 decimales en el resumen y 5 en el detalle para kWh (2 para MWh).
+3. Para días sin publicar (p. ej. mañana antes de ~20:15, hora a la que Red Eléctrica publica el PVPC del día siguiente) la API responde **HTTP 200** con `{"message": "No values for specified archive"}`; se detecta y se lanza `SinDatos`. `estado` puede ser `cargando`, `ok`, `sin-datos` o `error`.
+4. Mientras se ve el día de hoy, un segundo efecto comprueba si ya hay precios de mañana; si no, vuelve a mirar a las 20:15 y luego cada 10 minutos. Cuando los hay, aparece el botón «Ver los precios de mañana».
+5. Los precios de la API vienen en €/MWh; para kWh se dividen entre 1000. `formatearPrecio` usa 3 decimales en el resumen y 5 en el detalle para kWh (2 para MWh).
 
 Fechas: usar siempre los helpers de `utils.js` (`hoy`, `manana`, `parseISO` de date-fns). `new Date("YYYY-MM-DD")` y `toISOString()` trabajan en UTC y desplazan el día.
 
