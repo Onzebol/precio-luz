@@ -155,8 +155,13 @@ export default function App() {
 	const { fecha, zona, unidad, duracion } = parametros;
 	// Datos que se están mostrando y a qué día pertenecen: se conservan mientras carga el siguiente
 	const [datos, setDatos] = useState(null);
-	const [estado, setEstado] = useState("cargando");
 	const [intento, setIntento] = useState(0);
+	// Resultado de la última carga terminada; si no corresponde al día e intento actuales, se está cargando
+	const [resultado, setResultado] = useState(null);
+	const estado =
+		resultado?.fecha === fecha && resultado.intento === intento
+			? resultado.tipo
+			: "cargando";
 
 	const actualizar = (cambios) =>
 		setParametros((anteriores) => ({ ...anteriores, ...cambios }));
@@ -191,12 +196,11 @@ export default function App() {
 	useEffect(() => {
 		// Si se cambia de día antes de que llegue la respuesta, se descarta
 		let vigente = true;
-		setEstado("cargando");
 		cargarDia(fecha)
 			.then((data) => {
 				if (!vigente) return;
 				setDatos({ fecha, data });
-				setEstado("ok");
+				setResultado({ fecha, intento, tipo: "ok" });
 				// Precarga los días vecinos para que las flechas respondan al momento
 				[desplazarDia(fecha, -1), desplazarDia(fecha, 1)]
 					.filter((dia) => dia >= FECHA_MINIMA && dia <= manana())
@@ -205,7 +209,11 @@ export default function App() {
 			.catch((error) => {
 				if (!vigente) return;
 				setDatos(null);
-				setEstado(error instanceof SinDatos ? "sin-datos" : "error");
+				setResultado({
+					fecha,
+					intento,
+					tipo: error instanceof SinDatos ? "sin-datos" : "error",
+				});
 			});
 		return () => {
 			vigente = false;

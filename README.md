@@ -35,7 +35,7 @@ La web es una PWA (aplicación web progresiva), así que se puede instalar desde
 
 ## Desarrollo
 
-Requisitos: Node.js y npm.
+Requisitos: Node.js 20.19 o superior (o 22.12+) y npm.
 
 ```bash
 npm install       # instalar dependencias

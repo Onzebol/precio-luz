@@ -16,6 +16,8 @@ npm run lint      # ESLint sobre src/ con --max-warnings 0 (cualquier warning ha
 
 No hay tests ni framework de testing configurado.
 
+Versiones principales: Vite 8 (requiere Node 20.19+ o 22.12+; CI usa Node 24), React 18.3 (se probó React 19: funciona, pero añade ~79 kB al bundle sin aportar nada que se use), Tailwind 3, date-fns 4. ESLint usa configuración plana en `eslint.config.js`; está en ESLint 9 porque `eslint-plugin-react` aún no admite ESLint 10. `react-hooks` 7 incluye las reglas del React Compiler (p. ej. `set-state-in-effect`).
+
 ## Despliegue
 
 Cada push a `main` dispara `.github/workflows/deploy.yml`, que construye y publica `dist/` en GitHub Pages. Por eso `vite.config.js` fija `base: "/precio-luz/"`; no quitarlo o se rompen las rutas de los assets en Pages.
@@ -28,7 +30,7 @@ Flujo de datos:
 1. Fecha, zona, unidad y duración se leen de la URL (`?fecha=YYYY-MM-DD&zona=cym&unidad=mwh&duracion=2`) y se reescriben con `history.replaceState`; los valores por defecto (hoy, PCB, kWh, sin duración) no aparecen en la URL.
 2. Las peticiones pasan por `cargarDia(fecha)`, una caché en memoria de promesas por día: solo guarda los aciertos (un fallo se borra para poder reintentar, p. ej. mañana antes de publicarse). Tras cargar un día se precargan el anterior y el siguiente. Mientras carga otro día se sigue mostrando el anterior (`datos` guarda `{ fecha, data }`); solo se atenúa si la carga tarda más de 150 ms, y el esqueleto de carga aparece únicamente en la primera carga. Las respuestas de un día que ya no es el elegido se descartan (`vigente`).
 3. `pedirDatos(fecha)` llama a `https://api.esios.ree.es/archives/70/download_json?date=YYYY-MM-DD` (API key en la cabecera `x-api-key`, embebida en el cliente) y normaliza `data.PVPC` a `{ Hora: "HH:00", PCB, CYM }`. Los precios llegan como strings con formato español (`"123,45"`) y se convierten con `StringToNumerLocale`. Algunos días antiguos traen solo `GEN` en lugar de `PCB`/`CYM`, de ahí el fallback.
-4. Para días sin publicar (p. ej. mañana antes de ~20:15, hora a la que Red Eléctrica publica el PVPC del día siguiente) la API responde **HTTP 200** con `{"message": "No values for specified archive"}`; se detecta y se lanza `SinDatos`. `estado` puede ser `cargando`, `ok`, `sin-datos` o `error`.
+4. Para días sin publicar (p. ej. mañana antes de ~20:15, hora a la que Red Eléctrica publica el PVPC del día siguiente) la API responde **HTTP 200** con `{"message": "No values for specified archive"}`; se detecta y se lanza `SinDatos`. `estado` (`cargando`, `ok`, `sin-datos` o `error`) no se guarda: se deriva de `resultado`, la última carga terminada, comparando su fecha e intento con los actuales. Así el efecto no llama a `setState` de forma síncrona, que la regla `react-hooks/set-state-in-effect` prohíbe.
 5. Mientras se ve el día de hoy, un segundo efecto comprueba (también vía `cargarDia`) si ya hay precios de mañana; si no, vuelve a mirar a las 20:15 y luego cada 10 minutos. Cuando los hay, aparece el botón «Ver los precios de mañana».
 6. Atajos de teclado globales en `App.jsx` (← / → cambian de día, H vuelve a hoy), limitados al mismo rango que el selector. Se ignoran con modificadores o si el foco está en un campo de formulario, porque allí las flechas ya tienen función (fecha, botones de opción). La pista de atajos del pie solo se muestra con puntero fino (`@media (pointer: fine)`).
 7. Los precios de la API vienen en €/MWh; para kWh se dividen entre 1000. `formatearPrecio` usa 3 decimales en el resumen y 5 en el detalle para kWh (2 para MWh).
@@ -47,7 +49,7 @@ Conceptos de dominio:
 
 ## PWA
 
-`vite-plugin-pwa` (configurado en `vite.config.js`) genera el manifiesto, el service worker (Workbox, `registerType: "autoUpdate"`) y lo registra solo. Fijado en la rama 0.21 porque las versiones posteriores exigen Vite 5 o superior. Estrategias de caché:
+`vite-plugin-pwa` (configurado en `vite.config.js`) genera el manifiesto, el service worker (Workbox, `registerType: "autoUpdate"`) y lo registra solo. Estrategias de caché:
 - Recursos de la app: precacheados en cada build.
 - API de ESIOS: `NetworkFirst` (red con 5 s de espera; la copia guardada solo se usa sin conexión).
 - Google Fonts: `StaleWhileRevalidate` para el CSS y `CacheFirst` para las fuentes.
