@@ -56,6 +56,7 @@ export const pediodos = {
 };
 
 export const colorearPrecios = (data) => {
+	if (!data || data.length === 0) return [];
 	const dataOrdered = ordenarPrecios(data);
 	const precioMasBajo = dataOrdered[0];
 	const precioMasAlto = dataOrdered[dataOrdered.length - 1];
@@ -63,12 +64,20 @@ export const colorearPrecios = (data) => {
 	const tramo = diferencia / 3;
 	return data.map((item) => {
 		let color = "bg-orange-100/60";
-		if (item.Precio <= precioMasBajo.Precio + tramo) color = "bg-green-100/60";
-		if (item.Precio >= precioMasAlto.Precio - tramo) color = "bg-red-100/60";
+		let nivel = "medio";
+		if (item.Precio <= precioMasBajo.Precio + tramo) {
+			color = "bg-green-100/60";
+			nivel = "bajo";
+		}
+		if (item.Precio >= precioMasAlto.Precio - tramo) {
+			color = "bg-red-100/60";
+			nivel = "alto";
+		}
 		return {
 			Hora: item.Hora,
 			Precio: item.Precio,
 			Color: color,
+			Nivel: nivel,
 		};
 	});
 };

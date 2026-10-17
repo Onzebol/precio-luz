@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
 	AreaChart,
 	Badge,
-	BadgeDelta,
 	Card,
 	Dropdown,
 	DropdownItem,
@@ -18,7 +17,6 @@ import {
 	TableHeaderCell,
 	TableRow,
 	Text,
-	Title,
 } from "@tremor/react";
 import {
 	ArrowSmDownIcon,
@@ -28,6 +26,7 @@ import {
 	LightningBoltIcon,
 	MinusIcon,
 } from "@heroicons/react/outline";
+import { format, parseISO } from "date-fns";
 import { PriceCard } from "./components/PriceCard";
 import Datepicker from "react-tailwindcss-datepicker";
 import {
@@ -39,7 +38,7 @@ import {
 	periodoPeaje,
 } from "./utils";
 
-const pedirDatos = (date) => {
+const pedirDatos = (date, signal) => {
 	return fetch(
 		`https://api.esios.ree.es/archives/70/download_json?date=${date}`,
 		{
@@ -47,10 +46,16 @@ const pedirDatos = (date) => {
 				"x-api-key":
 					"***REMOVED***",
 			},
+			signal,
 		}
 	)
-		.then((response) => response.json())
+		.then((response) => {
+			if (!response.ok) throw new Error(`Error ${response.status}`);
+			return response.json();
+		})
 		.then(function (data) {
+			if (!Array.isArray(data?.PVPC) || data.PVPC.length === 0)
+				throw new Error("Sin datos");
 			return data.PVPC.map((item) => {
 				const pcb = "PCB" in item ? item.PCB : item.GEN;
 				const cym = "CYM" in item ? item.CYM : item.GEN;
@@ -74,8 +79,10 @@ const filterData = (data, province, unity) => {
 	});
 };
 
+const sinDatos = (data) => data === null || data.length === 0;
+
 const precioMasBajo = (data) => {
-	if (data === null) return { price: null, text: "" };
+	if (sinDatos(data)) return { price: null, text: "" };
 	const first = ordenarPrecios(data)[0];
 	return {
 		price: first.Precio,
@@ -84,7 +91,7 @@ const precioMasBajo = (data) => {
 };
 
 const precioMasAlto = (data) => {
-	if (data === null) return { price: null, text: "" };
+	if (sinDatos(data)) return { price: null, text: "" };
 	const last = ordenarPrecios(data)[data.length - 1];
 	return {
 		price: last.Precio,
@@ -93,7 +100,7 @@ const precioMasAlto = (data) => {
 };
 
 const precioMedio = (data) => {
-	if (data === null) return { price: null, text: "" };
+	if (sinDatos(data)) return { price: null, text: "" };
 	const totalPrecio = data.reduce(
 		(accumulator, currentValue) => accumulator + currentValue.Precio,
 		0
@@ -104,24 +111,42 @@ const precioMedio = (data) => {
 	};
 };
 
+// Fecha de hoy en hora local (toISOString usaría UTC y daría el día anterior de madrugada)
+const hoy = () => format(new Date(), "yyyy-MM-dd");
+
 export default function App() {
 	const [unity, setUnity] = useState("kWh");
 	const [province, setProvince] = useState("PCB");
 	const [selectedView, setSelectedView] = useState("1");
 	const [data, setData] = useState(null);
-	const [lowPrice, setLowPrice] = useState({ price: "", text: "" });
-	const [hightPrice, setHightPrice] = useState({ price: "", text: "" });
-	const [middlePrice, setMiddletPrice] = useState({ price: "", text: "" });
+	const [estado, setEstado] = useState("cargando");
+	const [lowPrice, setLowPrice] = useState({ price: null, text: "" });
+	const [hightPrice, setHightPrice] = useState({ price: null, text: "" });
+	const [middlePrice, setMiddletPrice] = useState({ price: null, text: "" });
 	const [dataFiltered, setDataFiltered] = useState(null);
 	const [date, setDate] = useState({
-		startDate: new Date().toISOString().split("T")[0],
-		endDate: new Date().toISOString().split("T")[0],
+		startDate: hoy(),
+		endDate: hoy(),
 	});
 
 	const numDigits = unity === "kWh" ? 5 : 2;
+	// parseISO interpreta "YYYY-MM-DD" en hora local, a diferencia de new Date()
+	const fechaSeleccionada = parseISO(date.startDate);
 
 	useEffect(() => {
-		pedirDatos(date.startDate).then((data) => setData(data));
+		const controller = new AbortController();
+		setEstado("cargando");
+		setData(null);
+		pedirDatos(date.startDate, controller.signal)
+			.then((data) => {
+				setData(data);
+				setEstado("ok");
+			})
+			.catch((error) => {
+				if (error.name === "AbortError") return;
+				setEstado("error");
+			});
+		return () => controller.abort();
 	}, [date]);
 
 	useEffect(() => {
@@ -133,13 +158,14 @@ export default function App() {
 	}, [data, unity, province]);
 
 	const handleChangeDate = (selectedDate) => {
+		if (!selectedDate?.startDate) return;
 		setDate(selectedDate);
 	};
 
 	return (
 		<>
 			<main className="bg-slate-50 p-6 sm:p-10">
-				<Title>Precio de la luz</Title>
+				<h1 className="text-lg font-medium text-gray-700">Precio de la luz</h1>
 				<Text>Información del precio de la luz obtenida de REE</Text>
 				<Grid numColsLg={3} className="mt-6 gap-6">
 					<Card decoration="top" decorationColor="stone">
@@ -149,9 +175,15 @@ export default function App() {
 								variant="solid"
 								size="xl"
 								color="stone"
+								aria-hidden="true"
 							/>
 							<div className="w-full">
-								<Text>Selecciona una fecha</Text>
+								<label
+									htmlFor="inputDate"
+									className="text-sm font-normal text-gray-500"
+								>
+									Selecciona una fecha
+								</label>
 								<Datepicker
 									inputId="inputDate"
 									i18n={"es"}
@@ -168,9 +200,15 @@ export default function App() {
 					</Card>
 					<Card decoration="top" decorationColor="purple">
 						<Flex justifyContent="start" className="space-x-4">
-							<Icon icon={GlobeIcon} variant="solid" size="xl" color="purple" />
-							<div className="w-full">
-								<Text>Selecciona unas provincias</Text>
+							<Icon
+								icon={GlobeIcon}
+								variant="solid"
+								size="xl"
+								color="purple"
+								aria-hidden="true"
+							/>
+							<div className="w-full" role="group" aria-labelledby="etiquetaZona">
+								<Text id="etiquetaZona">Selecciona la zona</Text>
 								<Dropdown value={province} onValueChange={setProvince}>
 									<DropdownItem
 										value="PCB"
@@ -188,9 +226,14 @@ export default function App() {
 								variant="solid"
 								size="xl"
 								color="yellow"
+								aria-hidden="true"
 							/>
-							<div className="w-full">
-								<Text>Selecciona una unidad de medida</Text>
+							<div
+								className="w-full"
+								role="group"
+								aria-labelledby="etiquetaUnidad"
+							>
+								<Text id="etiquetaUnidad">Selecciona una unidad de medida</Text>
 								<Dropdown value={unity} onValueChange={setUnity}>
 									<DropdownItem value="kWh" text={"Kilovatios hora (kWh)"} />
 									<DropdownItem value="MWh" text={"Megavatios hora (MWh)"} />
@@ -199,6 +242,17 @@ export default function App() {
 						</Flex>
 					</Card>
 				</Grid>
+
+				<div aria-live="polite" className="mt-6">
+					{estado === "cargando" && <Text>Cargando precios…</Text>}
+					{estado === "error" && (
+						<Text color="red">
+							No hay precios disponibles para esta fecha. Prueba con otro día
+							o vuelve a intentarlo más tarde.
+						</Text>
+					)}
+				</div>
+
 				<Grid numColsLg={3} className="mt-6 gap-6">
 					<PriceCard
 						icon={ArrowSmDownIcon}
@@ -235,7 +289,7 @@ export default function App() {
 				{selectedView === "1" ? (
 					<>
 						<AreaChart
-							data={dataFiltered}
+							data={dataFiltered ?? []}
 							index="Hora"
 							categories={["Precio"]}
 							colors={["blue"]}
@@ -256,43 +310,29 @@ export default function App() {
 							</TableRow>
 						</TableHead>
 						<TableBody>
-							{colorearPrecios(dataFiltered).map((item) => (
-								<TableRow key={item.Hora} className={item.Color}>
-									<TableCell>{`de ${item.Hora} a ${incrementarHora(
-										item.Hora
-									)}`}</TableCell>
-									<TableCell className="text-right">
-										{euroFormatter(item.Precio, numDigits, numDigits)}
-									</TableCell>
-									<TableCell className="text-right">
-										<Badge
-											icon={
-												periodoPeaje(
-													item.Hora,
-													new Date(date.startDate),
-													province
-												).icon
-											}
-											size="xs"
-											color={
-												periodoPeaje(
-													item.Hora,
-													new Date(date.startDate),
-													province
-												).color
-											}
-										>
-											{
-												periodoPeaje(
-													item.Hora,
-													new Date(date.startDate),
-													province
-												).text
-											}
-										</Badge>
-									</TableCell>
-								</TableRow>
-							))}
+							{colorearPrecios(dataFiltered).map((item) => {
+								const periodo = periodoPeaje(
+									item.Hora,
+									fechaSeleccionada,
+									province
+								);
+								return (
+									<TableRow key={item.Hora} className={item.Color}>
+										<TableCell>{`de ${item.Hora} a ${incrementarHora(
+											item.Hora
+										)}`}</TableCell>
+										<TableCell className="text-right">
+											{euroFormatter(item.Precio, numDigits, numDigits)}
+											<span className="sr-only">{` (precio ${item.Nivel})`}</span>
+										</TableCell>
+										<TableCell className="text-right">
+											<Badge icon={periodo.icon} size="xs" color={periodo.color}>
+												{periodo.text}
+											</Badge>
+										</TableCell>
+									</TableRow>
+								);
+							})}
 						</TableBody>
 					</Table>
 				)}

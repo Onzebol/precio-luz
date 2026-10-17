@@ -2,9 +2,15 @@ import { Card, Flex, Icon, Metric, Text } from "@tremor/react";
 
 export function PriceCard({ icon, title, price, text, color }) {
 	return (
-		<Card key="PrecioBajo" decoration="top" decorationColor={color}>
+		<Card decoration="top" decorationColor={color}>
 			<Flex justifyContent="start" className="space-x-4">
-				<Icon icon={icon} variant="solid" size="xl" color={color} />
+				<Icon
+					icon={icon}
+					variant="solid"
+					size="xl"
+					color={color}
+					aria-hidden="true"
+				/>
 				<div className="w-full">
 					<Text>{title}</Text>
 					<Flex
@@ -12,8 +18,8 @@ export function PriceCard({ icon, title, price, text, color }) {
 						alignItems="baseline"
 						className="flex-wrap"
 					>
-						<Metric className="mr-3">{price}</Metric>
-						<Text className="">{text}</Text>
+						<Metric className="mr-3 tabular-nums">{price}</Metric>
+						<Text>{text}</Text>
 					</Flex>
 				</div>
 			</Flex>
