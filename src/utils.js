@@ -49,7 +49,13 @@ export const periodos = {
 	punta: { clave: "punta", text: "Punta" },
 };
 
+// Hasta el 31/05/2021 el PVPC era la tarifa 2.0A, sin periodos de peaje
+export const INICIO_2_0TD = "2021-06-01";
+export const hayPeriodos = (fecha) => format(fecha, "yyyy-MM-dd") >= INICIO_2_0TD;
+
+// Periodo de peaje 2.0TD de una hora; null en los días anteriores a esa tarifa
 export const periodoPeaje = (value, fecha, province) => {
+	if (!hayPeriodos(fecha)) return null;
 	const hora = parseInt(value.split(":")[0]);
 	const dayOfWeek = fecha.getDay();
 	const isWeekend = dayOfWeek === 6 || dayOfWeek === 0;

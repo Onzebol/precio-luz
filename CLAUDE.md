@@ -52,7 +52,7 @@ Los días de cambio de hora tienen 23 o 25 horas: no asumir 24 elementos (por es
 
 Conceptos de dominio:
 - **Zona**: `PCB` = Península, Canarias y Baleares; `CYM` = Ceuta y Melilla.
-- **Periodos de peaje** (`periodoPeaje`): valle/llano/punta según hora, día de la semana (fin de semana = todo valle) y zona; CYM tiene un reparto de horas distinto. No contempla festivos nacionales.
+- **Periodos de peaje** (`periodoPeaje`): valle/llano/punta según hora, día de la semana (fin de semana = todo valle) y zona; CYM tiene un reparto de horas distinto. No contempla festivos nacionales. Solo existen desde la tarifa 2.0TD (`INICIO_2_0TD`, 01/06/2021): antes `periodoPeaje` devuelve `null` y `hayPeriodos(fecha)` es falso, así que `FranjaHoras` no pinta la banda de periodos y `TablaHoras` oculta la columna.
 - **Nivel de precio** (`nivelesPrecio`): divide el rango min–max del día en tercios (bajo/medio/alto); colorea las barras.
 - **Tramo más barato** (`tramoMasBarato`): parte de la hora más barata y se extiende mientras las horas vecinas no superen el mínimo + 15 % del rango del día; es el titular de la página. El umbral se eligió comparando con datos reales (resultados estables entre 10 % y 20 %).
 - **Mejor bloque** (`mejorBloque`): para la duración elegida en el selector (1, 2, 3, 4, 6 u 8 h), las horas seguidas con menor precio medio; en empate, el primero. Se marca con un corchete sobre las barras. No cruza la medianoche.

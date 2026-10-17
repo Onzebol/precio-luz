@@ -1,11 +1,11 @@
-import { desplazarDia } from "./utils";
+import { INICIO_2_0TD, desplazarDia } from "./utils";
 
 // Cambios regulatorios que alteran la definición del precio del PVPC y hacen que
 // comparar a ambos lados no sea comparar lo mismo. `hasta` (opcional) es el último
 // día de una medida temporal: su fin también es un cambio, con el nombre `tituloFin`
 export const HITOS = [
 	{
-		fecha: "2021-06-01",
+		fecha: INICIO_2_0TD,
 		titulo: "Tarifa 2.0TD",
 		texto:
 			"Sustituye a la 2.0A. Los peajes y cargos pasan a ser distintos en punta, llano y valle, así que el precio de cada hora incluye una parte regulada que cambia a lo largo del día. Desde este día el precio de Ceuta y Melilla también es distinto.",

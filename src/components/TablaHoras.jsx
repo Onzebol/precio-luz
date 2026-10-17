@@ -1,4 +1,4 @@
-import { formatearPrecio, incrementarHora, periodoPeaje, rangoHoras } from "../utils";
+import { formatearPrecio, hayPeriodos, incrementarHora, periodoPeaje, rangoHoras } from "../utils";
 
 const puntoNivel = {
 	bajo: { color: "bg-barato", texto: "bajo" },
@@ -7,6 +7,8 @@ const puntoNivel = {
 };
 
 export function TablaHoras({ precios, unidad, fecha, zona }) {
+	// Antes de la tarifa 2.0TD no había periodos de peaje
+	const conPeriodos = hayPeriodos(fecha);
 	return (
 		<details className="group mt-14 border-t border-linea pt-6">
 			<summary className="cursor-pointer list-none rounded-sm font-display text-xl font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-tinta">
@@ -28,9 +30,11 @@ export function TablaHoras({ precios, unidad, fecha, zona }) {
 							<th scope="col" className="py-2 pr-4 font-normal">
 								Nivel
 							</th>
-							<th scope="col" className="py-2 font-normal">
-								Periodo
-							</th>
+							{conPeriodos && (
+								<th scope="col" className="py-2 font-normal">
+									Periodo
+								</th>
+							)}
 						</tr>
 					</thead>
 					<tbody>
@@ -51,7 +55,9 @@ export function TablaHoras({ precios, unidad, fecha, zona }) {
 									/>
 									{puntoNivel[item.Nivel].texto}
 								</td>
-								<td className="py-2">{periodoPeaje(item.Hora, fecha, zona).text}</td>
+								{conPeriodos && (
+									<td className="py-2">{periodoPeaje(item.Hora, fecha, zona).text}</td>
+								)}
 							</tr>
 						))}
 					</tbody>

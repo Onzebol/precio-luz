@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
 	formatearPrecio,
+	hayPeriodos,
 	horaCorta,
 	incrementarHora,
 	periodoPeaje,
@@ -63,7 +64,9 @@ export function FranjaHoras({ precios, unidad, fecha, zona, indiceAhora, bloque 
 	const rango = maximo - minimo || 1;
 	// Altura (en %) de la línea de cero: 0 salvo que haya precios negativos
 	const base = (-minimo / rango) * 100;
-	const segmentos = segmentosPeriodo(precios, fecha, zona);
+	// Antes de la tarifa 2.0TD no había periodos: no se pintan ni la banda ni su nombre
+	const conPeriodos = hayPeriodos(fecha);
+	const segmentos = conPeriodos ? segmentosPeriodo(precios, fecha, zona) : [];
 	const elegida = precios[seleccion];
 	const periodoElegido = periodoPeaje(elegida.Hora, fecha, zona);
 	// Los días de cambio de hora tienen 23 o 25 horas
@@ -80,8 +83,8 @@ export function FranjaHoras({ precios, unidad, fecha, zona, indiceAhora, bloque 
 				<span className="font-semibold">
 					{rangoHoras(elegida.Hora, incrementarHora(elegida.Hora))}
 				</span>{" "}
-				{formatearPrecio(elegida.Precio, unidad, true)}/{unidad}, periodo{" "}
-				{periodoElegido.text.toLowerCase()}
+				{formatearPrecio(elegida.Precio, unidad, true)}/{unidad}
+				{periodoElegido && `, periodo ${periodoElegido.text.toLowerCase()}`}
 				{seleccion === indiceAhora && <span className="text-suave"> (ahora)</span>}
 			</p>
 
@@ -165,26 +168,34 @@ export function FranjaHoras({ precios, unidad, fecha, zona, indiceAhora, bloque 
 				))}
 			</div>
 
-			<div
-				aria-hidden="true"
-				className="mt-3 grid gap-[2px] sm:gap-1"
-				style={columnas}
-			>
-				{segmentos.map((segmento, i) => (
-					<span
-						key={i}
-						className={`truncate rounded-[3px] px-1.5 py-1 text-xs font-medium ${
-							fondoPeriodo[segmento.periodo.clave]
-						}`}
-						style={{ gridColumn: `span ${segmento.horas}` }}
+			{conPeriodos ? (
+				<>
+					<div
+						aria-hidden="true"
+						className="mt-3 grid gap-[2px] sm:gap-1"
+						style={columnas}
 					>
-						{segmento.horas >= 2 ? segmento.periodo.text.toLowerCase() : ""}
-					</span>
-				))}
-			</div>
-			<p className="mt-2 text-xs text-suave">
-				La banda inferior marca el periodo de peaje de cada hora.
-			</p>
+						{segmentos.map((segmento, i) => (
+							<span
+								key={i}
+								className={`truncate rounded-[3px] px-1.5 py-1 text-xs font-medium ${
+									fondoPeriodo[segmento.periodo.clave]
+								}`}
+								style={{ gridColumn: `span ${segmento.horas}` }}
+							>
+								{segmento.horas >= 2 ? segmento.periodo.text.toLowerCase() : ""}
+							</span>
+						))}
+					</div>
+					<p className="mt-2 text-xs text-suave">
+						La banda inferior marca el periodo de peaje de cada hora.
+					</p>
+				</>
+			) : (
+				<p className="mt-3 text-xs text-suave">
+					Hasta mayo de 2021 la tarifa era la 2.0A, sin periodos de peaje.
+				</p>
+			)}
 		</section>
 	);
 }
