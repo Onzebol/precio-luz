@@ -42,6 +42,10 @@ export const FUENTES_FACTURA = [
 		url: "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2026-13759",
 	},
 	{
+		texto: "Consumo por aparatos: IDAE, SPAHOUSEC III (2021)",
+		url: "https://informesweb.idae.es/spahousec-iii/index.php",
+	},
+	{
 		texto: "Alquiler del contador: Orden IET/1491/2013",
 		url: "https://www.boe.es/buscar/doc.php?id=BOE-A-2013-8561",
 	},
@@ -64,22 +68,49 @@ const diasDelMes = (mes) => {
 
 export const PERIODOS = ["punta", "llano", "valle"];
 
+// Aparatos que se pueden programar para las horas baratas y su peso medio en el consumo
+// eléctrico de los hogares españoles (IDAE, SPAHOUSEC III, datos de 2021). El termo es la
+// media de todos los hogares, tengan termo eléctrico o no
+export const APARATOS_PROGRAMABLES = [
+	{ clave: "lavadora", nombre: "Lavadora", peso: 0.0645 },
+	{ clave: "lavavajillas", nombre: "Lavavajillas", peso: 0.034 },
+	{ clave: "secadora", nombre: "Secadora", peso: 0.0153 },
+	{ clave: "horno", nombre: "Horno", peso: 0.0579 },
+	{ clave: "termo", nombre: "Termo eléctrico", peso: 0.059 },
+];
+
 // Factura estimada de un mes. El consumo de cada periodo (kWh) se valora al precio medio
 // de ese periodo en el mes (€/kWh): dentro de un periodo, quien consume más en sus horas
-// caras pagará algo más. Cada concepto se calcula día a día con los valores vigentes ese
-// día y se suma
-export const estimarFactura = ({ mes, potenciaKw, consumos, preciosKwh }) => {
+// caras pagará algo más. Con `programadoKwh`, ese consumo (de aparatos puestos en las
+// horas baratas) sale de los tres periodos a partes proporcionales y se valora a
+// `precioBaratoKwh`. Cada concepto se calcula día a día con los valores vigentes ese día
+export const estimarFactura = ({
+	mes,
+	potencias,
+	consumos,
+	preciosKwh,
+	programadoKwh = 0,
+	precioBaratoKwh = 0,
+}) => {
 	const dias = diasDelMes(mes);
 	const potencia = potenciaDe(Number(mes.slice(0, 4)));
 	const total = { potencia: 0, energia: 0, bonoSocial: 0, impuesto: 0, contador: 0, iva: 0 };
+	const consumoTotal = PERIODOS.reduce((suma, periodo) => suma + consumos[periodo], 0);
+	// Parte de cada periodo que queda tras sacar lo programado
+	const resto = consumoTotal ? Math.max(0, 1 - programadoKwh / consumoTotal) : 1;
 	const energias = Object.fromEntries(
-		PERIODOS.map((periodo) => [periodo, consumos[periodo] * preciosKwh[periodo]])
+		PERIODOS.map((periodo) => [periodo, consumos[periodo] * resto * preciosKwh[periodo]])
 	);
-	const consumoDia = PERIODOS.reduce((suma, periodo) => suma + consumos[periodo], 0) / dias.length;
+	energias.programado = Math.min(programadoKwh, consumoTotal) * precioBaratoKwh;
+	const energiaTotal = Object.values(energias).reduce((suma, valor) => suma + valor, 0);
+	const consumoDia = consumoTotal / dias.length;
+	// Los tipos reducidos de IVA dependían de la potencia contratada: cuenta la mayor
+	const potenciaMaxima = Math.max(potencias.p1, potencias.p2);
 	let minimoAplicado = false;
 	for (const dia of dias) {
-		const potenciaDia = (potenciaKw * (potencia.total.p1 + potencia.total.p2)) / 365;
-		const energiaDia = PERIODOS.reduce((suma, periodo) => suma + energias[periodo], 0) / dias.length;
+		const potenciaDia =
+			(potencias.p1 * potencia.total.p1 + potencias.p2 * potencia.total.p2) / 365;
+		const energiaDia = energiaTotal / dias.length;
 		const bonoDia = vigente(BONO_SOCIAL, dia).anual / 365;
 		const impuestoPorcentaje =
 			vigente(IMPUESTO_ELECTRICO, dia).tipo * (potenciaDia + energiaDia + bonoDia);
@@ -94,7 +125,7 @@ export const estimarFactura = ({ mes, potenciaKw, consumos, preciosKwh }) => {
 		total.impuesto += impuestoDia;
 		total.contador += contadorDia;
 		total.iva +=
-			tipoIva(dia, potenciaKw) * (potenciaDia + energiaDia + bonoDia + impuestoDia + contadorDia);
+			tipoIva(dia, potenciaMaxima) * (potenciaDia + energiaDia + bonoDia + impuestoDia + contadorDia);
 	}
 	return {
 		...total,
@@ -104,7 +135,7 @@ export const estimarFactura = ({ mes, potenciaKw, consumos, preciosKwh }) => {
 		// El impuesto eléctrico no llegaba a 1 €/MWh y se cobró ese mínimo (algún día o todos)
 		minimoAplicado,
 		// Tipos aplicados (si cambiaron dentro del mes, aparecen todos)
-		tiposIva: [...new Set(dias.map((dia) => tipoIva(dia, potenciaKw)))],
+		tiposIva: [...new Set(dias.map((dia) => tipoIva(dia, potenciaMaxima)))],
 		tiposImpuesto: [...new Set(dias.map((dia) => vigente(IMPUESTO_ELECTRICO, dia).tipo))],
 	};
 };

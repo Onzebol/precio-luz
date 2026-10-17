@@ -12,7 +12,7 @@ Aplicación web que muestra el precio horario de la luz en España (tarifa PVPC)
 - Gráfico de barras con el precio de cada hora, coloreado según sea bajo, medio o alto, y con los periodos de peaje (valle, llano y punta) desde junio de 2021, cuando empezó la tarifa 2.0TD.
 - Tabla hora a hora con el precio, el nivel y el periodo de cada hora.
 - Precio de la potencia contratada (P1 y P2) del año en curso: peajes, cargos y margen de comercialización, por año y por día, con un ejemplo mensual y enlaces a las normas del BOE.
-- Calculadora de factura: estimación de un mes del año en curso a partir de la potencia contratada y el consumo de punta, llano y valle (como viene en la factura), cada uno con su precio medio real en el mes, la financiación del bono social, el alquiler del contador y los impuestos vigentes cada día.
+- Calculadora de factura: estimación de un mes del año en curso a partir de la potencia contratada en P1 y P2 y el consumo de punta, llano y valle (como vienen en la factura), cada uno con su precio medio real en el mes; también calcula cuánto se ahorra programando la lavadora, el lavavajillas, la secadora, el horno o el termo en las 3 horas más baratas de cada día (con el peso medio de cada aparato en los hogares españoles según el IDAE), la financiación del bono social, el alquiler del contador y los impuestos vigentes cada día.
 - Selección de cualquier día desde el 01/04/2014 (primer día con PVPC publicado) hasta mañana, con el calendario, con los botones de día anterior y día siguiente o con el teclado (<kbd>←</kbd> y <kbd>→</kbd> cambian de día, <kbd>H</kbd> vuelve a hoy). Red Eléctrica publica los precios del día siguiente hacia las 20:15; cuando ya están disponibles, aparece un botón «Ver los precios de mañana».
 - Selección de zona: Península, Canarias y Baleares, o Ceuta y Melilla.
 - Precios en €/kWh o €/MWh.
@@ -89,4 +89,4 @@ En cada ejecución el script regenera también `public/datos/resumen.json`, con 
 - `dias`: por día, para PCB y luego CYM, el precio medio, el mínimo, el máximo y la hora (0-23) del mínimo y del máximo, en €/MWh.
 - `perfiles`: por mes y zona, el precio medio de cada hora del reloj.
 
-También genera `public/datos/medias.json` (unos 7 KB), con la media de cada mes por zona y, desde junio de 2021, las de punta, llano y valle: lo que necesitan la comparación con lo habitual y la calculadora de factura de la vista de día.
+También genera `public/datos/medias.json` (unos 8 KB), con la media de cada mes por zona y, desde junio de 2021, las de punta, llano y valle y la de las 3 horas seguidas más baratas de cada día: lo que necesitan la comparación con lo habitual y la calculadora de factura de la vista de día.

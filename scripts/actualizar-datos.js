@@ -154,6 +154,21 @@ const mediasPeriodo = (dias, zona) => {
 	return ["punta", "llano", "valle"].map((clave) => redondear(sumas[clave] / cuentas[clave]));
 };
 
+// Precio medio de las 3 horas seguidas más baratas de cada día del mes (sin cruzar la
+// medianoche): lo que paga quien programa la lavadora y compañía en el mejor momento
+const HORAS_BARATAS = 3;
+const mediaHorasBaratas = (dias, zona) => {
+	const mejores = Object.values(dias).map((precios) => {
+		let mejor = Infinity;
+		for (let i = 0; i + HORAS_BARATAS <= precios.length; i++) {
+			const bloque = precios.slice(i, i + HORAS_BARATAS);
+			mejor = Math.min(mejor, bloque.reduce((suma, hora) => suma + hora[zona], 0) / HORAS_BARATAS);
+		}
+		return mejor;
+	});
+	return redondear(mejores.reduce((suma, valor) => suma + valor, 0) / mejores.length);
+};
+
 // Se recalcula entero a partir de los meses: así siempre cuadra con ellos.
 // Un día y un mes por línea, como en los ficheros mensuales
 const escribirResumen = async (meses) => {
@@ -172,15 +187,19 @@ const escribirResumen = async (meses) => {
 		join(CARPETA, "resumen.json"),
 		`{\n"dias":{\n${dias.join(",\n")}\n},\n"perfiles":{\n${perfiles.join(",\n")}\n}\n}\n`
 	);
-	// Versión mínima para la vista de día (unos 6 KB): media de cada mes por zona,
+	// Versión mínima para la vista de día (unos 8 KB): media de cada mes por zona,
 	// [PCB, CYM], calculada como la media de las medias diarias. Desde la tarifa 2.0TD
-	// siguen las medias de punta, llano y valle de PCB y luego de CYM (para la calculadora)
+	// siguen, para la calculadora, las medias de punta, llano y valle de PCB y luego de
+	// CYM, y la media de las 3 horas seguidas más baratas de cada día de PCB y de CYM
 	const medias = conDias.map((mes) => {
 		const diarias = Object.values(meses[mes]).map(resumirDia);
 		const media = (posicion) =>
 			redondear(diarias.reduce((suma, dia) => suma + dia[posicion], 0) / diarias.length);
 		const valores = [media(0), media(5)];
-		if (`${mes}-01` >= INICIO_2_0TD) valores.push(...ZONAS.flatMap((zona) => mediasPeriodo(meses[mes], zona)));
+		if (`${mes}-01` >= INICIO_2_0TD) {
+			valores.push(...ZONAS.flatMap((zona) => mediasPeriodo(meses[mes], zona)));
+			valores.push(...ZONAS.map((zona) => mediaHorasBaratas(meses[mes], zona)));
+		}
 		return `${JSON.stringify(mes)}:${JSON.stringify(valores)}`;
 	});
 	await writeFile(join(CARPETA, "medias.json"), `{\n${medias.join(",\n")}\n}\n`);
