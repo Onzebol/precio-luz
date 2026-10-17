@@ -424,7 +424,7 @@ export default function App() {
 								href={urlParametros({ ...parametros, vista: opcion.valor })}
 								aria-current={vista === opcion.valor ? "page" : undefined}
 								onClick={(event) => cambiarVista(event, opcion.valor)}
-								className="rounded-[5px] px-3 py-1.5 text-sm font-medium text-suave hover:text-tinta aria-[current=page]:bg-tinta aria-[current=page]:text-papel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+								className="rounded-[5px] px-3 py-1.5 text-sm font-medium text-suave hover:text-tinta aria-[current=page]:bg-tinta aria-[current=page]:text-papel focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
 							>
 								{opcion.texto}
 							</a>
@@ -456,7 +456,7 @@ export default function App() {
 							<button
 								type="button"
 								onClick={() => actualizar({ fecha: manana() })}
-								className="rounded-full bg-tinta px-3 py-1 text-sm font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+								className="rounded-full bg-tinta px-3 py-1 text-sm font-medium text-papel hover:bg-tinta/90 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
 							>
 								Ver los precios de mañana
 							</button>
@@ -494,7 +494,7 @@ export default function App() {
 									<button
 										type="button"
 										onClick={() => actualizar({ fecha: hoy() })}
-										className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+										className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
 									>
 										Ver los precios de hoy
 									</button>
@@ -508,7 +508,7 @@ export default function App() {
 								<button
 									type="button"
 									onClick={() => setIntento((n) => n + 1)}
-									className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+									className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
 								>
 									Reintentar
 								</button>
@@ -587,7 +587,7 @@ export default function App() {
 					Precio del término de energía de la tarifa PVPC (2.0TD; hasta mayo de 2021,
 					2.0A) publicado por Red Eléctrica en ESIOS. No incluye impuestos.
 				</p>
-				{vista === "dia" && <p className="hidden pb-6 text-sm text-suave [@media(pointer:fine)]:block">
+				{vista === "dia" && <p className="hidden pb-6 text-sm text-suave pointer-fine:block">
 					Atajos de teclado: <kbd className="font-sans font-medium">←</kbd> y{" "}
 					<kbd className="font-sans font-medium">→</kbd> cambian de día,{" "}
 					<kbd className="font-sans font-medium">H</kbd> vuelve a hoy.

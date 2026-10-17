@@ -261,7 +261,7 @@ export function Historico({ zona, unidad }) {
 						porMeses={rango === "todo"}
 					/>
 					<details className="group mt-6">
-						<summary className="cursor-pointer list-none rounded-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-tinta">
+						<summary className="cursor-pointer list-none rounded-xs font-medium focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-tinta">
 							<span className="mr-2 inline-block transition-transform group-open:rotate-90 motion-reduce:transition-none">
 								›
 							</span>
@@ -320,7 +320,7 @@ export function Historico({ zona, unidad }) {
 							setError(false);
 							setIntento((n) => n + 1);
 						}}
-						className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+						className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
 					>
 						Reintentar
 					</button>

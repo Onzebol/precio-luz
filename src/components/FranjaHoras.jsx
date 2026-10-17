@@ -132,7 +132,7 @@ export function FranjaHoras({ precios, unidad, fecha, zona, indiceAhora, bloque 
 							onClick={() => setSeleccion(i)}
 							onMouseEnter={() => setSeleccion(i)}
 							onFocus={() => setSeleccion(i)}
-							className="relative h-full min-w-0 touch-manipulation rounded-[3px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+							className="relative h-full min-w-0 touch-manipulation rounded-[3px] focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
 						>
 							{i === indiceAhora && (
 								<span

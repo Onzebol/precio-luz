@@ -1,11 +1,28 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+/* Tokens de diseño: papel de factura, tinta pizarra y los tres niveles de precio
+   (cada uno con una variante -intenso, más oscura, para la barra seleccionada) */
+@theme {
+	--color-papel: #e9eeeb;
+	--color-tinta: #17262b;
+	--color-suave: #55666b;
+	--color-linea: #c7d1cd;
+
+	--color-barato: #2e8b63;
+	--color-barato-intenso: #1b6646;
+	--color-medio: #b8790f;
+	--color-medio-intenso: #8a5a06;
+	--color-caro: #c4473a;
+	--color-caro-intenso: #962d22;
+
+	--font-sans: Barlow, system-ui, sans-serif;
+	--font-display: "Barlow Semi Condensed", Barlow, system-ui, sans-serif;
+}
 
 @layer base {
 	html {
-		background-color: theme("colors.papel");
-		color: theme("colors.tinta");
+		background-color: var(--color-papel);
+		color: var(--color-tinta);
 		color-scheme: light;
 		-webkit-tap-highlight-color: transparent;
 	}

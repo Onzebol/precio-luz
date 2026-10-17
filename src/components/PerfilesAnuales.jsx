@@ -65,7 +65,7 @@ function Perfil({ perfil, escala }) {
 							onClick={() => setElegida(hora)}
 							onMouseEnter={() => setElegida(hora)}
 							onFocus={() => setElegida(hora)}
-							className="relative h-full min-w-0 touch-manipulation focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-tinta"
+							className="relative h-full min-w-0 touch-manipulation focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-tinta"
 						>
 							<span
 								className={`absolute inset-x-0 ${valor >= 0 ? "rounded-t-[2px]" : "rounded-b-[2px]"} ${color}`}

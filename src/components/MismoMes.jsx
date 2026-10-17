@@ -62,7 +62,7 @@ export function MismoMes({ mensuales, unidad }) {
 						setMes(event.target.value);
 						setElegida(null);
 					}}
-					className="ml-1 rounded-md border border-linea bg-white/60 px-2 py-1.5 font-medium text-tinta hover:bg-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+					className="ml-1 rounded-md border border-linea bg-white/60 px-2 py-1.5 font-medium text-tinta hover:bg-white focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
 				>
 					{MESES.map((nombre, i) => (
 						<option key={nombre} value={String(i + 1).padStart(2, "0")}>
@@ -72,7 +72,7 @@ export function MismoMes({ mensuales, unidad }) {
 				</select>
 			</label>
 
-			<p aria-live="polite" className="mt-4 min-h-[3rem] text-sm sm:text-base">
+			<p aria-live="polite" className="mt-4 min-h-12 text-sm sm:text-base">
 				<span className="inline-block font-semibold first-letter:uppercase">
 					{nombreMes} de {actual.desde.slice(0, 4)}
 				</span>
@@ -109,13 +109,13 @@ export function MismoMes({ mensuales, unidad }) {
 							onClick={() => setElegida(i)}
 							onMouseEnter={() => setElegida(i)}
 							onFocus={() => setElegida(i)}
-							className="relative h-full min-w-0 touch-manipulation focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+							className="relative h-full min-w-0 touch-manipulation focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
 						>
 							{/* Separador cuando entre este año y el anterior cambió la forma de calcular el precio */}
 							{cambios(i).length > 0 && (
 								<span
 									aria-hidden="true"
-									className="absolute -left-[3px] bottom-0 top-0 border-l border-suave"
+									className="absolute left-[-3px] bottom-0 top-0 border-l border-suave"
 								/>
 							)}
 							<span

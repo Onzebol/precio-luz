@@ -19,7 +19,7 @@ function BotonDia({ etiqueta, atajo, deshabilitado, onClick, children }) {
 }
 
 const anillo =
-	"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta";
+	"focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta";
 
 export function Segmentado({ leyenda, nombre, opciones, valor, onCambio }) {
 	return (
@@ -36,7 +36,7 @@ export function Segmentado({ leyenda, nombre, opciones, valor, onCambio }) {
 							checked={valor === opcion.valor}
 							onChange={() => onCambio(opcion.valor)}
 						/>
-						<span className="block cursor-pointer rounded-[5px] px-3 py-1.5 text-sm font-medium text-suave hover:text-tinta peer-checked:bg-tinta peer-checked:text-papel peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-tinta">
+						<span className="block cursor-pointer rounded-[5px] px-3 py-1.5 text-sm font-medium text-suave hover:text-tinta peer-checked:bg-tinta peer-checked:text-papel peer-focus-visible:outline-solid peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-tinta">
 							{opcion.texto}
 						</span>
 					</label>

@@ -29,7 +29,7 @@ La web es una PWA (aplicación web progresiva), así que se puede instalar desde
 ## Tecnologías
 
 - [React 18](https://react.dev/) + [Vite](https://vitejs.dev/)
-- [Tailwind CSS](https://tailwindcss.com/)
+- [Tailwind CSS 4](https://tailwindcss.com/) (con su plugin de Vite)
 - [date-fns](https://date-fns.org/)
 - [vite-plugin-pwa](https://vite-pwa-org.netlify.app/) para la instalación como aplicación y el funcionamiento sin conexión
 - Tipografías [Barlow y Barlow Semi Condensed](https://fonts.google.com/specimen/Barlow)

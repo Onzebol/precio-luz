@@ -11,7 +11,7 @@ export function TablaHoras({ precios, unidad, fecha, zona }) {
 	const conPeriodos = hayPeriodos(fecha);
 	return (
 		<details className="group mt-14 border-t border-linea pt-6">
-			<summary className="cursor-pointer list-none rounded-sm font-display text-xl font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-tinta">
+			<summary className="cursor-pointer list-none rounded-xs font-display text-xl font-semibold focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-tinta">
 				<span className="mr-2 inline-block transition-transform group-open:rotate-90 motion-reduce:transition-none">
 					›
 				</span>

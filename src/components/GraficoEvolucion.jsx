@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { HITOS, cambiosEntre } from "../hitos";
 import { desplazarDia, formatearPrecio } from "../utils";
 
-// Colores de tailwind.config.js (en SVG se usan como atributos, no como clases)
+// Colores del @theme de src/index.css (en SVG se usan como atributos, no como clases)
 const TINTA = "#17262B";
 const SUAVE = "#55666B";
 const LINEA = "#C7D1CD";
@@ -154,7 +154,7 @@ export function GraficoEvolucion({ puntos, unidad, porMeses }) {
 				onKeyDown={alPulsar}
 				onFocus={() => setElegido((actual) => actual ?? puntos.length - 1)}
 				onBlur={() => setElegido(null)}
-				className="relative rounded-md focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-tinta"
+				className="relative rounded-md focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-tinta"
 			>
 				{ancho > 0 && (
 					<svg
@@ -304,7 +304,7 @@ export function GraficoEvolucion({ puntos, unidad, porMeses }) {
 
 				{punto && (
 					<div
-						className="pointer-events-none absolute top-10 z-10 w-max max-w-[15rem] rounded-md border border-linea bg-white px-3 py-2 text-sm shadow-sm"
+						className="pointer-events-none absolute top-10 z-10 w-max max-w-60 rounded-md border border-linea bg-white px-3 py-2 text-sm shadow-xs"
 						style={
 							x(punto.desde) > ancho / 2
 								? { right: ancho - x(punto.desde) + 10 }

@@ -31,7 +31,7 @@ export function SelectorDuracion({ duracion, onDuracion, bloque, unidad, horasDi
 						<button
 							type="button"
 							onClick={() => onDuracion(null)}
-							className="rounded-sm text-suave underline underline-offset-2 hover:text-tinta focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+							className="rounded-xs text-suave underline underline-offset-2 hover:text-tinta focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
 						>
 							Quitar
 						</button>
