@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
+import { useAncho } from "../useAncho";
 import { HITOS, cambiosEntre } from "../hitos";
 import { desplazarDia, formatearPrecio } from "../utils";
 
@@ -49,20 +50,6 @@ const marcasX = (desde, hasta, porMeses, ancho) => {
 	const hueco = ancho / Math.max(marcas.length, 1);
 	const cada = Math.ceil(36 / hueco);
 	return marcas.filter((_, i) => i % cada === 0);
-};
-
-// Ancho del contenedor, para dibujar a escala real y que el texto no se deforme
-const useAncho = () => {
-	const ref = useRef(null);
-	const [ancho, setAncho] = useState(0);
-	useEffect(() => {
-		const observador = new ResizeObserver(([entrada]) =>
-			setAncho(Math.round(entrada.contentRect.width))
-		);
-		observador.observe(ref.current);
-		return () => observador.disconnect();
-	}, []);
-	return [ref, ancho];
 };
 
 // puntos: [{ desde, hasta, etiqueta, media, minimo, maximo }] en €/MWh, ordenados por fecha

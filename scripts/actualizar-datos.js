@@ -10,7 +10,7 @@
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { parseISO } from "date-fns";
-import { INICIO_2_0TD, StringToNumerLocale, periodoPeaje } from "../src/utils.js";
+import { INICIO_2_0TD, StringToNumerLocale, horaReloj, periodoPeaje } from "../src/utils.js";
 
 const FECHA_MINIMA = "2014-04-01";
 const CARPETA = join(import.meta.dirname, "..", "public", "datos");
@@ -95,16 +95,6 @@ const escribirMes = async (mes, dias) => {
 const ZONAS = ["PCB", "CYM"];
 
 const redondear = (valor) => Math.round(valor * 100) / 100;
-
-// Hora del reloj (0-23) de cada posición del día. En primavera (23 horas) la API ya
-// se salta la etiqueta 02:00, pero en otoño (25 horas) numera seguido de 00:00 a
-// 24:00: las posiciones 2 y 3 son las dos 02:00 y el resto va una hora adelantado
-const horaReloj = (precios, indice) =>
-	precios.length === 25
-		? indice < 3
-			? indice
-			: indice - 1
-		: Number(precios[indice].Hora.slice(0, 2));
 
 // Por zona: [media, mínimo, máximo, hora del mínimo, hora del máximo]
 const resumirDia = (precios) =>

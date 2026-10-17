@@ -5,6 +5,7 @@ import { HITOS, cambiosEntre } from "../hitos";
 import { diaYMes, formatearPrecio } from "../utils";
 import { Segmentado } from "./Controles";
 import { GraficoEvolucion } from "./GraficoEvolucion";
+import { MapaCalor } from "./MapaCalor";
 import { MismoMes } from "./MismoMes";
 import { PerfilesAnuales } from "./PerfilesAnuales";
 
@@ -154,7 +155,7 @@ function Dia({ fecha, media, precio }) {
 	);
 }
 
-export function Historico({ zona, unidad }) {
+export function Historico({ zona, unidad, enlaceDia, verDia }) {
 	const [resumen, setResumen] = useState(null);
 	const [error, setError] = useState(false);
 	const [intento, setIntento] = useState(0);
@@ -194,6 +195,11 @@ export function Historico({ zona, unidad }) {
 	const cifras = useMemo(
 		() => (resumen ? cifrasDestacadas(resumen.dias, zona) : null),
 		[resumen, zona]
+	);
+	// Años con datos (del más reciente al más antiguo) y último día publicado, para el mapa de calor
+	const ultimoDia = useMemo(
+		() => (resumen ? Object.keys(resumen.dias).sort().at(-1) : null),
+		[resumen]
 	);
 	const precio = (valor) => formatearPrecio(unidad === "MWh" ? valor : valor / 1000, unidad);
 	// "0,715 €" -> "0,715"; la unidad va aparte, como en la vista de día
@@ -339,6 +345,27 @@ export function Historico({ zona, unidad }) {
 						son mucho mayores.
 					</p>
 					<PerfilesAnuales perfiles={perfilesDibujados} />
+				</section>
+			)}
+
+			{ultimoDia && (
+				<section aria-labelledby="titulo-mapa" className="mt-14 border-t border-linea pt-6">
+					<h2 id="titulo-mapa" className="font-display text-xl font-semibold">
+						Todas las horas de un año
+					</h2>
+					<p className="mt-2 max-w-prose text-suave">
+						Cada columna es un día y cada fila, una hora. Frente a la media del día se ve
+						a qué horas conviene consumir aunque el precio general suba o baje; con el
+						precio, las semanas caras y las baratas.
+					</p>
+					<MapaCalor
+						periodos={anios.map((anio) => anio.anio)}
+						ultimoDia={ultimoDia}
+						zona={zona}
+						unidad={unidad}
+						enlaceDia={enlaceDia}
+						verDia={verDia}
+					/>
 				</section>
 			)}
 

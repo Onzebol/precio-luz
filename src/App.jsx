@@ -7,6 +7,7 @@ import { TablaHoras } from "./components/TablaHoras";
 import { FichaPotencia } from "./components/FichaPotencia";
 import { CalculadoraFactura } from "./components/CalculadoraFactura";
 import { compararConHabitual, pedirMedias } from "./comparativas";
+import { pedirMes } from "./datos";
 import {
 	DURACIONES,
 	desplazarDia,
@@ -32,21 +33,6 @@ const Historico = lazy(() =>
 const FECHA_MINIMA = "2014-04-01";
 
 class SinDatos extends Error {}
-
-// Los precios los descarga de ESIOS un workflow programado (scripts/actualizar-datos.js)
-// y se publican junto a la web, un JSON por mes: datos/AAAA/MM.json
-const pedirMes = (mes) =>
-	// no-cache: revalida con el servidor para ver enseguida los precios de mañana
-	fetch(`${import.meta.env.BASE_URL}datos/${mes.replace("-", "/")}.json`, {
-		cache: "no-cache",
-	}).then((response) => {
-		// Mes del que aún no hay ningún día publicado. Pages responde 404; el servidor
-		// de Vite, en cambio, devuelve index.html, por eso se mira también el tipo
-		const esJson = response.headers.get("content-type")?.includes("json");
-		if (response.status === 404 || (response.ok && !esJson)) return {};
-		if (!response.ok) throw new Error(`Error ${response.status}`);
-		return response.json();
-	});
 
 // Meses ya pedidos (promesas), compartidos por todos sus días
 const meses = new Map();
@@ -251,13 +237,26 @@ export default function App() {
 		return () => window.removeEventListener("popstate", alNavegar);
 	}, []);
 
-	const cambiarVista = (event, nueva) => {
+	const cambiarVista = (event, cambios) => {
 		// Con modificadores (nueva pestaña, etc.) se deja actuar al enlace
 		if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
 			return;
 		event.preventDefault();
-		if (nueva === vista) return;
-		actualizar({ vista: nueva });
+		if (cambios.vista === vista && !cambios.fecha) return;
+		actualizar(cambios);
+		window.scrollTo(0, 0);
+	};
+
+	// Enlace a un día desde el histórico (mapa de calor): abre la vista de día sin recargar
+	const enlaceDia = (dia) => {
+		const cambios = { vista: "dia", fecha: dia };
+		return {
+			href: urlParametros({ ...parametros, ...cambios }),
+			onClick: (event) => cambiarVista(event, cambios),
+		};
+	};
+	const verDia = (dia) => {
+		actualizar({ vista: "dia", fecha: dia });
 		window.scrollTo(0, 0);
 	};
 
@@ -425,7 +424,7 @@ export default function App() {
 								key={opcion.valor}
 								href={urlParametros({ ...parametros, vista: opcion.valor })}
 								aria-current={vista === opcion.valor ? "page" : undefined}
-								onClick={(event) => cambiarVista(event, opcion.valor)}
+								onClick={(event) => cambiarVista(event, { vista: opcion.valor })}
 								className="rounded-[5px] px-3 py-1.5 text-sm font-medium text-suave hover:text-tinta aria-[current=page]:bg-tinta aria-[current=page]:text-papel focus-visible:outline-solid focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
 							>
 								{opcion.texto}
@@ -448,7 +447,7 @@ export default function App() {
 			<main id="contenido" className="mx-auto max-w-5xl px-4 pb-16 pt-12 sm:px-8 sm:pt-16">
 				{vista === "historico" ? (
 					<Suspense fallback={<p className="text-suave">Cargando histórico…</p>}>
-						<Historico zona={zona} unidad={unidad} />
+						<Historico zona={zona} unidad={unidad} enlaceDia={enlaceDia} verDia={verDia} />
 					</Suspense>
 				) : (
 					<>

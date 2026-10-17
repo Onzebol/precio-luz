@@ -146,6 +146,16 @@ export const mejorBloque = (data, horas) => {
 	return mejor;
 };
 
+// Hora del reloj (0-23) de cada posición del día. En primavera (23 horas) la API ya
+// se salta la etiqueta 02:00, pero en otoño (25 horas) numera seguido de 00:00 a
+// 24:00: las posiciones 2 y 3 son las dos 02:00 y el resto va una hora adelantado
+export const horaReloj = (precios, indice) =>
+	precios.length === 25
+		? indice < 3
+			? indice
+			: indice - 1
+		: Number(precios[indice].Hora.slice(0, 2));
+
 // Fechas en hora local (toISOString usaría UTC y daría el día anterior de madrugada)
 export const hoy = () => format(new Date(), "yyyy-MM-dd");
 export const manana = () => format(addDays(new Date(), 1), "yyyy-MM-dd");
