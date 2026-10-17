@@ -35,11 +35,11 @@ export default defineConfig({
 			workbox: {
 				runtimeCaching: [
 					{
-						// Precios: siempre de la red; la copia guardada solo se usa sin conexión
-						urlPattern: /^https:\/\/api\.esios\.ree\.es\/.*/,
+						// Precios (datos/AAAA/MM.json): siempre de la red; la copia guardada solo se usa sin conexión
+						urlPattern: ({ url }) => url.pathname.startsWith("/precio-luz/datos/"),
 						handler: "NetworkFirst",
 						options: {
-							cacheName: "precios-esios",
+							cacheName: "precios",
 							networkTimeoutSeconds: 5,
 							expiration: { maxEntries: 120, maxAgeSeconds: 60 * 60 * 24 * 60 },
 							cacheableResponse: { statuses: [0, 200] },

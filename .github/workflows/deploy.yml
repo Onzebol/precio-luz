@@ -4,11 +4,25 @@ on:
   push:
     branches:
       - main
+  schedule:
+    # Red Eléctrica publica el PVPC del día siguiente hacia las 20:15 (hora de España).
+    # Varias pasadas por si se retrasa: de 20:20 a 22:50 en verano y de 19:20 a 21:50
+    # en invierno (cron va en UTC), más una de repesca por la mañana
+    - cron: "20,50 18-20 * * *"
+    - cron: "30 6 * * *"
+  workflow_dispatch:
+
+# Una ejecución cada vez, para que dos no intenten guardar los mismos precios
+concurrency:
+  group: deploy
+  cancel-in-progress: false
 
 jobs:
-  build:
-    name: Build
+  deploy:
+    name: Update prices and deploy
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repo
@@ -23,31 +37,38 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # En un push, un fallo de ESIOS no debe impedir desplegar los cambios de la web
+      - name: Download new prices
+        continue-on-error: ${{ github.event_name == 'push' }}
+        env:
+          ESIOS_API_KEY: ${{ secrets.ESIOS_API_KEY }}
+        run: npm run datos
+
+      # Se guarda lo descargado aunque el paso anterior haya fallado a medias
+      - name: Commit new prices
+        id: datos
+        if: ${{ !cancelled() }}
+        run: |
+          if [ -z "$(git status --porcelain public/datos)" ]; then
+            echo "Sin precios nuevos"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add public/datos
+          git commit -m "Precios actualizados"
+          git pull --rebase
+          git push
+          echo "cambios=true" >> "$GITHUB_OUTPUT"
+
+      # Las ejecuciones programadas solo vuelven a desplegar si hay precios nuevos
       - name: Build project
+        id: build
+        if: ${{ !cancelled() && (github.event_name != 'schedule' || steps.datos.outputs.cambios == 'true') }}
         run: npm run build
 
-      - name: Upload production-ready build files
-        uses: actions/upload-artifact@v7
-        with:
-          name: production-files
-          path: ./dist
-
-  deploy:
-    name: Deploy
-    needs: build
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: production-files
-          path: ./dist
-
       - name: Deploy to GitHub Pages
+        if: ${{ !cancelled() && steps.build.outcome == 'success' }}
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

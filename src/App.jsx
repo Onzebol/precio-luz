@@ -6,7 +6,6 @@ import { FranjaCargando, FranjaHoras } from "./components/FranjaHoras";
 import { TablaHoras } from "./components/TablaHoras";
 import {
 	DURACIONES,
-	StringToNumerLocale,
 	desplazarDia,
 	diaYMes,
 	fechaLarga,
@@ -21,38 +20,46 @@ import {
 	mejorBloque,
 } from "./utils";
 
-const FECHA_MINIMA = "2014-03-31";
+// Primer día con PVPC en ESIOS
+const FECHA_MINIMA = "2014-04-01";
 
 class SinDatos extends Error {}
 
-const pedirDatos = (date) => {
-	return fetch(
-		`https://api.esios.ree.es/archives/70/download_json?date=${date}`,
-		{
-			headers: {
-				"x-api-key":
-					"***REMOVED***",
-			},
-		}
-	)
-		.then((response) => {
-			if (!response.ok) throw new Error(`Error ${response.status}`);
-			return response.json();
-		})
-		.then(function (data) {
-			// Para días sin publicar, la API responde 200 con un mensaje en lugar de PVPC
-			if (!Array.isArray(data?.PVPC) || data.PVPC.length === 0)
-				throw new SinDatos();
-			return data.PVPC.map((item) => {
-				const pcb = "PCB" in item ? item.PCB : item.GEN;
-				const cym = "CYM" in item ? item.CYM : item.GEN;
-				return {
-					Hora: `${item.Hora.split("-")[0]}:00`,
-					PCB: StringToNumerLocale(pcb, "es"),
-					CYM: StringToNumerLocale(cym, "es"),
-				};
-			});
-		});
+// Los precios los descarga de ESIOS un workflow programado (scripts/actualizar-datos.js)
+// y se publican junto a la web, un JSON por mes: datos/AAAA/MM.json
+const pedirMes = (mes) =>
+	// no-cache: revalida con el servidor para ver enseguida los precios de mañana
+	fetch(`${import.meta.env.BASE_URL}datos/${mes.replace("-", "/")}.json`, {
+		cache: "no-cache",
+	}).then((response) => {
+		// Mes del que aún no hay ningún día publicado. Pages responde 404; el servidor
+		// de Vite, en cambio, devuelve index.html, por eso se mira también el tipo
+		const esJson = response.headers.get("content-type")?.includes("json");
+		if (response.status === 404 || (response.ok && !esJson)) return {};
+		if (!response.ok) throw new Error(`Error ${response.status}`);
+		return response.json();
+	});
+
+// Meses ya pedidos (promesas), compartidos por todos sus días
+const meses = new Map();
+const pedirDatos = (fecha) => {
+	const mes = fecha.slice(0, 7);
+	if (!meses.has(mes)) {
+		meses.set(
+			mes,
+			pedirMes(mes).catch((error) => {
+				meses.delete(mes);
+				throw error;
+			})
+		);
+	}
+	const peticion = meses.get(mes);
+	return peticion.then((dias) => {
+		if (dias[fecha]) return dias[fecha];
+		// El día puede publicarse más tarde (p. ej. mañana): se olvida el mes para volver a pedirlo
+		if (meses.get(mes) === peticion) meses.delete(mes);
+		throw new SinDatos();
+	});
 };
 
 // Días ya pedidos (promesas), para que volver a un día o avanzar al precargado sea instantáneo.
