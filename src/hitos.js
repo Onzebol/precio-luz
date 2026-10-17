@@ -7,6 +7,8 @@ export const HITOS = [
 	{
 		fecha: INICIO_2_0TD,
 		titulo: "Tarifa 2.0TD",
+		// Nombre corto para las marcas del gráfico
+		corto: "2.0TD",
 		texto:
 			"Sustituye a la 2.0A. Los peajes y cargos pasan a ser distintos en punta, llano y valle, así que el precio de cada hora incluye una parte regulada que cambia a lo largo del día. Desde este día el precio de Ceuta y Melilla también es distinto.",
 		fuente: {
@@ -19,6 +21,7 @@ export const HITOS = [
 		hasta: "2023-12-31",
 		tituloFin: "Fin de la excepción ibérica",
 		titulo: "Excepción ibérica",
+		corto: "Tope al gas",
 		texto:
 			"Tope al precio del gas usado para producir electricidad. Rebaja el precio del mercado mayorista, pero el coste de la compensación a las centrales de gas se suma al precio del PVPC.",
 		fuente: {
@@ -29,6 +32,7 @@ export const HITOS = [
 	{
 		fecha: "2024-01-01",
 		titulo: "PVPC ligado a futuros",
+		corto: "Futuros",
 		texto:
 			"Parte del precio de la energía deja de salir del mercado diario y se toma de los mercados a plazo: un 25 % en 2024, un 40 % en 2025 y un 55 % desde 2026. El precio se suaviza frente a las subidas y bajadas del mercado diario.",
 		fuente: {

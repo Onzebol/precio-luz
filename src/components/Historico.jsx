@@ -2,6 +2,8 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { parseISO } from "date-fns";
 import { HITOS, cambiosEntre } from "../hitos";
 import { diaYMes, formatearPrecio } from "../utils";
+import { Segmentado } from "./Controles";
+import { GraficoEvolucion } from "./GraficoEvolucion";
 
 // "2021-06-01" -> "1/6/2021"
 const fechaCorta = (fecha) => new Intl.DateTimeFormat("es-ES").format(parseISO(fecha));
@@ -47,6 +49,60 @@ const resumirAnios = (dias, zona) => {
 		.sort((a, b) => b.anio.localeCompare(a.anio));
 };
 
+const RANGOS = [
+	{ valor: "todo", texto: "Desde 2014" },
+	{ valor: "anio", texto: "Último año" },
+	{ valor: "90", texto: "90 días" },
+];
+
+const nombreMes = (mes) =>
+	new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" }).format(
+		parseISO(`${mes}-01`)
+	);
+const nombreDia = (fecha) =>
+	new Intl.DateTimeFormat("es-ES", {
+		weekday: "short",
+		day: "numeric",
+		month: "short",
+		year: "numeric",
+	}).format(parseISO(fecha));
+
+// Puntos del gráfico: medias mensuales desde 2014 o días sueltos en los rangos cortos.
+// minimo y maximo son la hora más barata y la más cara del día (en un mes, su media)
+const puntosEvolucion = (dias, zona, rango) => {
+	const d = DESPLAZAMIENTO[zona];
+	const fechas = Object.keys(dias).sort();
+	if (rango !== "todo") {
+		return fechas.slice(rango === "anio" ? -365 : -90).map((fecha) => ({
+			desde: fecha,
+			hasta: fecha,
+			etiqueta: nombreDia(fecha),
+			media: dias[fecha][d],
+			minimo: dias[fecha][d + 1],
+			maximo: dias[fecha][d + 2],
+		}));
+	}
+	const meses = new Map();
+	for (const fecha of fechas) {
+		const mes = fecha.slice(0, 7);
+		if (!meses.has(mes)) meses.set(mes, { desde: fecha, dias: 0, media: 0, minimo: 0, maximo: 0 });
+		const acumulado = meses.get(mes);
+		acumulado.hasta = fecha;
+		acumulado.dias++;
+		acumulado.media += dias[fecha][d];
+		acumulado.minimo += dias[fecha][d + 1];
+		acumulado.maximo += dias[fecha][d + 2];
+	}
+	return [...meses].map(([mes, a]) => ({
+		desde: a.desde,
+		hasta: a.hasta,
+		etiqueta: nombreMes(mes),
+		media: a.media / a.dias,
+		minimo: a.minimo / a.dias,
+		maximo: a.maximo / a.dias,
+	}));
+};
+
 // Precio y, debajo, el día: así la tabla cabe a lo ancho en el móvil
 function Dia({ fecha, media, precio }) {
 	return (
@@ -76,6 +132,11 @@ export function Historico({ zona, unidad }) {
 		() => (resumen ? resumirAnios(resumen.dias, zona) : []),
 		[resumen, zona]
 	);
+	const [rango, setRango] = useState("todo");
+	const puntos = useMemo(
+		() => (resumen ? puntosEvolucion(resumen.dias, zona, rango) : []),
+		[resumen, zona, rango]
+	);
 	const precio = (valor) => formatearPrecio(unidad === "MWh" ? valor : valor / 1000, unidad);
 
 	return (
@@ -84,9 +145,78 @@ export function Historico({ zona, unidad }) {
 				Histórico del precio de la luz
 			</h1>
 			<p className="mt-4 max-w-prose text-suave">
-				Precio medio de cada año desde abril de 2014, el primer día publicado por Red
+				Cómo ha cambiado el precio desde abril de 2014, el primer día publicado por Red
 				Eléctrica. Sin impuestos y sin ajustar por la inflación.
 			</p>
+
+			{resumen && (
+				<section aria-labelledby="titulo-evolucion" className="mt-10 border-t border-linea pt-6">
+					<div className="flex flex-wrap items-end justify-between gap-4">
+						<h2 id="titulo-evolucion" className="font-display text-xl font-semibold">
+							Precio medio {rango === "todo" ? "de cada mes" : "de cada día"}
+						</h2>
+						<Segmentado
+							leyenda="Periodo"
+							nombre="rango"
+							valor={rango}
+							onCambio={setRango}
+							opciones={RANGOS}
+						/>
+					</div>
+					<GraficoEvolucion
+						key={rango}
+						puntos={puntos}
+						unidad={unidad}
+						porMeses={rango === "todo"}
+					/>
+					<details className="group mt-6">
+						<summary className="cursor-pointer list-none rounded-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-tinta">
+							<span className="mr-2 inline-block transition-transform group-open:rotate-90 motion-reduce:transition-none">
+								›
+							</span>
+							Datos del gráfico
+						</summary>
+						<div className="mt-4 max-h-96 overflow-auto">
+							<table className="w-full max-w-2xl text-left text-sm">
+								<thead className="sticky top-0 bg-papel text-suave">
+									<tr className="border-b border-linea">
+										<th scope="col" className="py-2 pr-4 font-normal">
+											{rango === "todo" ? "Mes" : "Día"}
+										</th>
+										<th scope="col" className="py-2 pr-4 text-right font-normal">
+											Media
+										</th>
+										<th scope="col" className="py-2 pr-4 text-right font-normal">
+											Hora más barata{rango === "todo" ? " (media)" : ""}
+										</th>
+										<th scope="col" className="py-2 text-right font-normal">
+											Hora más cara{rango === "todo" ? " (media)" : ""}
+										</th>
+									</tr>
+								</thead>
+								<tbody>
+									{puntos.toReversed().map((p) => (
+										<tr key={p.desde} className="border-b border-linea/60">
+											<th scope="row" className="py-1.5 pr-4 font-normal first-letter:uppercase">
+												{p.etiqueta}
+											</th>
+											<td className="whitespace-nowrap py-1.5 pr-4 text-right font-medium tabular-nums">
+												{precio(p.media)}
+											</td>
+											<td className="whitespace-nowrap py-1.5 pr-4 text-right tabular-nums">
+												{precio(p.minimo)}
+											</td>
+											<td className="whitespace-nowrap py-1.5 text-right tabular-nums">
+												{precio(p.maximo)}
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					</details>
+				</section>
+			)}
 
 			{!resumen && !error && <p className="mt-10 text-suave">Cargando histórico…</p>}
 
@@ -107,8 +237,11 @@ export function Historico({ zona, unidad }) {
 			)}
 
 			{resumen && (
-				<div className="mt-10 overflow-x-auto border-t border-linea pt-6">
-					<table className="w-full max-w-3xl text-left text-sm sm:text-base">
+				<section aria-labelledby="titulo-anios" className="mt-14 overflow-x-auto border-t border-linea pt-6">
+					<h2 id="titulo-anios" className="font-display text-xl font-semibold">
+						Año a año
+					</h2>
+					<table className="mt-4 w-full max-w-3xl text-left text-sm sm:text-base">
 						<caption className="sr-only">Precio medio por año (€/{unidad})</caption>
 						<thead className="text-sm text-suave">
 							<tr className="border-b border-linea">
@@ -158,7 +291,7 @@ export function Historico({ zona, unidad }) {
 							))}
 						</tbody>
 					</table>
-				</div>
+				</section>
 			)}
 
 			<section aria-labelledby="comparar" className="mt-14 max-w-prose border-t border-linea pt-6">
