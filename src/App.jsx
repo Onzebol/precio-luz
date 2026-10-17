@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import { parseISO } from "date-fns";
 import { Controles } from "./components/Controles";
 import { SelectorDuracion } from "./components/SelectorDuracion";
@@ -19,6 +19,11 @@ import {
 	tramoMasBarato,
 	mejorBloque,
 } from "./utils";
+
+// El histórico se descarga solo al abrirlo, para no engordar la carga de la vista de día
+const Historico = lazy(() =>
+	import("./components/Historico").then((modulo) => ({ default: modulo.Historico }))
+);
 
 // Primer día con PVPC en ESIOS
 const FECHA_MINIMA = "2014-04-01";
@@ -89,11 +94,12 @@ const filterData = (data, province, unity) => {
 	});
 };
 
-// La fecha, la zona y la unidad viven en la URL para poder compartir el enlace
+// La vista, la fecha, la zona y la unidad viven en la URL para poder compartir el enlace
 const leerParametros = () => {
 	const parametros = new URLSearchParams(window.location.search);
 	const fecha = parametros.get("fecha") ?? "";
 	return {
+		vista: parametros.get("vista") === "historico" ? "historico" : "dia",
 		fecha:
 			/^\d{4}-\d{2}-\d{2}$/.test(fecha) && fecha >= FECHA_MINIMA && fecha <= manana()
 				? fecha
@@ -106,18 +112,23 @@ const leerParametros = () => {
 	};
 };
 
-const escribirParametros = ({ fecha, zona, unidad, duracion }) => {
+const urlParametros = ({ vista, fecha, zona, unidad, duracion }) => {
 	const parametros = new URLSearchParams();
+	if (vista !== "dia") parametros.set("vista", vista);
 	if (fecha !== hoy()) parametros.set("fecha", fecha);
 	if (zona !== "PCB") parametros.set("zona", "cym");
 	if (unidad !== "kWh") parametros.set("unidad", "mwh");
 	if (duracion) parametros.set("duracion", duracion);
 	const consulta = parametros.toString();
-	window.history.replaceState(
-		null,
-		"",
-		`${window.location.pathname}${consulta ? `?${consulta}` : ""}`
-	);
+	return `${window.location.pathname}${consulta ? `?${consulta}` : ""}`;
+};
+
+// Cambiar de vista añade una entrada al historial (para que «Atrás» vuelva a la anterior);
+// el resto de cambios solo reescriben la URL actual
+const escribirParametros = (parametros) => {
+	const vistaActual = leerParametros().vista;
+	const metodo = parametros.vista === vistaActual ? "replaceState" : "pushState";
+	window.history[metodo](null, "", urlParametros(parametros));
 };
 
 const fraseTramo = (tramo, unidad) => {
@@ -159,7 +170,7 @@ function Dato({ etiqueta, precio, unidad, detalle }) {
 
 export default function App() {
 	const [parametros, setParametros] = useState(leerParametros);
-	const { fecha, zona, unidad, duracion } = parametros;
+	const { vista, fecha, zona, unidad, duracion } = parametros;
 	// Datos que se están mostrando y a qué día pertenecen: se conservan mientras carga el siguiente
 	const [datos, setDatos] = useState(null);
 	const [intento, setIntento] = useState(0);
@@ -177,8 +188,26 @@ export default function App() {
 		escribirParametros(parametros);
 	}, [parametros]);
 
-	// Atajos de teclado: ← y → cambian de día, H vuelve a hoy
+	// «Atrás» y «Adelante» del navegador entre vistas: el estado se vuelve a leer de la URL
 	useEffect(() => {
+		const alNavegar = () => setParametros(leerParametros());
+		window.addEventListener("popstate", alNavegar);
+		return () => window.removeEventListener("popstate", alNavegar);
+	}, []);
+
+	const cambiarVista = (event, nueva) => {
+		// Con modificadores (nueva pestaña, etc.) se deja actuar al enlace
+		if (event.button !== 0 || event.altKey || event.ctrlKey || event.metaKey || event.shiftKey)
+			return;
+		event.preventDefault();
+		if (nueva === vista) return;
+		actualizar({ vista: nueva });
+		window.scrollTo(0, 0);
+	};
+
+	// Atajos de teclado (solo en la vista de día): ← y → cambian de día, H vuelve a hoy
+	useEffect(() => {
+		if (vista !== "dia") return;
 		const alPulsar = (event) => {
 			if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey)
 				return;
@@ -198,7 +227,7 @@ export default function App() {
 		};
 		window.addEventListener("keydown", alPulsar);
 		return () => window.removeEventListener("keydown", alPulsar);
-	}, []);
+	}, [vista]);
 
 	useEffect(() => {
 		// Si se cambia de día antes de que llegue la respuesta, se descarta
@@ -296,22 +325,41 @@ export default function App() {
 			</a>
 
 			<header className="mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-x-10 gap-y-6 px-4 pt-6 sm:px-8 sm:pt-10">
-				<p className="flex items-center gap-2 font-display text-lg font-semibold">
-					<svg
-						aria-hidden="true"
-						viewBox="0 0 32 32"
-						className="h-7 w-7 shrink-0"
-					>
-						<rect width="32" height="32" rx="7" fill="#17262B" />
-						<path d="M18 3 7 18h7l-2 11 11-15h-7z" fill="#facc15" />
-					</svg>
-					Precio de la luz
-				</p>
+				<div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+					<p className="flex items-center gap-2 font-display text-lg font-semibold">
+						<svg
+							aria-hidden="true"
+							viewBox="0 0 32 32"
+							className="h-7 w-7 shrink-0"
+						>
+							<rect width="32" height="32" rx="7" fill="#17262B" />
+							<path d="M18 3 7 18h7l-2 11 11-15h-7z" fill="#facc15" />
+						</svg>
+						Precio de la luz
+					</p>
+					{/* Enlaces de verdad (se pueden abrir en otra pestaña); el clic normal cambia de vista sin recargar */}
+					<nav aria-label="Vistas" className="flex gap-1 rounded-md border border-linea bg-white/60 p-0.5">
+						{[
+							{ valor: "dia", texto: "Día" },
+							{ valor: "historico", texto: "Histórico" },
+						].map((opcion) => (
+							<a
+								key={opcion.valor}
+								href={urlParametros({ ...parametros, vista: opcion.valor })}
+								aria-current={vista === opcion.valor ? "page" : undefined}
+								onClick={(event) => cambiarVista(event, opcion.valor)}
+								className="rounded-[5px] px-3 py-1.5 text-sm font-medium text-suave hover:text-tinta aria-[current=page]:bg-tinta aria-[current=page]:text-papel focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+							>
+								{opcion.texto}
+							</a>
+						))}
+					</nav>
+				</div>
 				<Controles
 					fecha={fecha}
 					fechaMinima={FECHA_MINIMA}
 					fechaMaxima={manana()}
-					onFecha={(valor) => actualizar({ fecha: valor })}
+					onFecha={vista === "dia" ? (valor) => actualizar({ fecha: valor }) : undefined}
 					zona={zona}
 					onZona={(valor) => actualizar({ zona: valor })}
 					unidad={unidad}
@@ -320,129 +368,137 @@ export default function App() {
 			</header>
 
 			<main id="contenido" className="mx-auto max-w-5xl px-4 pb-16 pt-12 sm:px-8 sm:pt-16">
-				<div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
-					<p className="text-suave first-letter:uppercase">{fechaLarga(fecha)}</p>
-					{esHoy && hayManana && (
-						<button
-							type="button"
-							onClick={() => actualizar({ fecha: manana() })}
-							className="rounded-full bg-tinta px-3 py-1 text-sm font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
-						>
-							Ver los precios de mañana
-						</button>
-					)}
-				</div>
-				{/* Al cambiar de día se mantiene el contenido; solo se atenúa si la carga pasa de 150 ms */}
-				<div
-					aria-busy={actualizando}
-					className={`transition-opacity duration-200 motion-reduce:transition-none ${
-						actualizando ? "opacity-50 delay-150" : "opacity-100"
-					}`}
-				>
-					<h1
-						aria-live="polite"
-						className="mt-2 max-w-[18ch] text-balance font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
-					>
-						{titular}
-					</h1>
-	
-					{estado === "cargando" && !datos && (
-						<>
-							<p className="mt-4 text-suave">Cargando precios…</p>
-							<FranjaCargando />
-						</>
-					)}
-	
-					{estado === "sin-datos" && (
-						<div className="mt-4 max-w-prose">
-							<p>
-								{fecha === manana()
-									? "Red Eléctrica publica los precios del día siguiente hacia las 20:15. Vuelve a mirar después de esa hora."
-									: "Red Eléctrica no tiene precios publicados para este día. Elige otra fecha."}
-							</p>
-							{!esHoy && (
-								<button
-									type="button"
-									onClick={() => actualizar({ fecha: hoy() })}
-									className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
-								>
-									Ver los precios de hoy
-								</button>
-							)}
-						</div>
-					)}
-	
-					{estado === "error" && (
-						<div className="mt-4 max-w-prose">
-							<p>Comprueba tu conexión a internet y vuelve a intentarlo.</p>
+				{vista === "historico" ? (
+					<Suspense fallback={<p className="text-suave">Cargando histórico…</p>}>
+						<Historico zona={zona} unidad={unidad} />
+					</Suspense>
+				) : (
+					<>
+						<div className="flex flex-wrap items-baseline gap-x-4 gap-y-2">
+						<p className="text-suave first-letter:uppercase">{fechaLarga(fecha)}</p>
+						{esHoy && hayManana && (
 							<button
 								type="button"
-								onClick={() => setIntento((n) => n + 1)}
-								className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+								onClick={() => actualizar({ fecha: manana() })}
+								className="rounded-full bg-tinta px-3 py-1 text-sm font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
 							>
-								Reintentar
+								Ver los precios de mañana
 							</button>
-						</div>
-					)}
-	
-					{hayPrecios && (
-						<>
-							<p className="mt-4 max-w-prose text-suave">{fraseTramo(tramo, unidad)}</p>
-	
-							<dl className="mt-10 grid grid-cols-2 gap-x-6 gap-y-6 border-t border-linea pt-6 sm:grid-cols-4">
-								{indiceAhora !== -1 && (
-									<Dato
-										etiqueta="Ahora"
-										precio={precios[indiceAhora].Precio}
-										unidad={unidad}
-										detalle={rangoHoras(
-											precios[indiceAhora].Hora,
-											incrementarHora(precios[indiceAhora].Hora)
-										)}
-									/>
+						)}
+					</div>
+					{/* Al cambiar de día se mantiene el contenido; solo se atenúa si la carga pasa de 150 ms */}
+					<div
+						aria-busy={actualizando}
+						className={`transition-opacity duration-200 motion-reduce:transition-none ${
+							actualizando ? "opacity-50 delay-150" : "opacity-100"
+						}`}
+					>
+						<h1
+							aria-live="polite"
+							className="mt-2 max-w-[18ch] text-balance font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
+						>
+							{titular}
+						</h1>
+		
+						{estado === "cargando" && !datos && (
+							<>
+								<p className="mt-4 text-suave">Cargando precios…</p>
+								<FranjaCargando />
+							</>
+						)}
+		
+						{estado === "sin-datos" && (
+							<div className="mt-4 max-w-prose">
+								<p>
+									{fecha === manana()
+										? "Red Eléctrica publica los precios del día siguiente hacia las 20:15. Vuelve a mirar después de esa hora."
+										: "Red Eléctrica no tiene precios publicados para este día. Elige otra fecha."}
+								</p>
+								{!esHoy && (
+									<button
+										type="button"
+										onClick={() => actualizar({ fecha: hoy() })}
+										className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+									>
+										Ver los precios de hoy
+									</button>
 								)}
-								<Dato
-									etiqueta="Hora más barata"
-									precio={minimo.Precio}
+							</div>
+						)}
+		
+						{estado === "error" && (
+							<div className="mt-4 max-w-prose">
+								<p>Comprueba tu conexión a internet y vuelve a intentarlo.</p>
+								<button
+									type="button"
+									onClick={() => setIntento((n) => n + 1)}
+									className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+								>
+									Reintentar
+								</button>
+							</div>
+						)}
+		
+						{hayPrecios && (
+							<>
+								<p className="mt-4 max-w-prose text-suave">{fraseTramo(tramo, unidad)}</p>
+		
+								<dl className="mt-10 grid grid-cols-2 gap-x-6 gap-y-6 border-t border-linea pt-6 sm:grid-cols-4">
+									{indiceAhora !== -1 && (
+										<Dato
+											etiqueta="Ahora"
+											precio={precios[indiceAhora].Precio}
+											unidad={unidad}
+											detalle={rangoHoras(
+												precios[indiceAhora].Hora,
+												incrementarHora(precios[indiceAhora].Hora)
+											)}
+										/>
+									)}
+									<Dato
+										etiqueta="Hora más barata"
+										precio={minimo.Precio}
+										unidad={unidad}
+										detalle={rangoHoras(minimo.Hora, incrementarHora(minimo.Hora))}
+									/>
+									<Dato etiqueta="Media del día" precio={media} unidad={unidad} />
+									<Dato
+										etiqueta="Hora más cara"
+										precio={maximo.Precio}
+										unidad={unidad}
+										detalle={rangoHoras(maximo.Hora, incrementarHora(maximo.Hora))}
+									/>
+								</dl>
+		
+								<SelectorDuracion
+									duracion={duracion}
+									onDuracion={(valor) => actualizar({ duracion: valor })}
+									bloque={bloque}
 									unidad={unidad}
-									detalle={rangoHoras(minimo.Hora, incrementarHora(minimo.Hora))}
+									horasDia={precios.length}
 								/>
-								<Dato etiqueta="Media del día" precio={media} unidad={unidad} />
-								<Dato
-									etiqueta="Hora más cara"
-									precio={maximo.Precio}
+		
+								<FranjaHoras
+									key={`${fechaMostrada}-${zona}`}
+									precios={precios}
 									unidad={unidad}
-									detalle={rangoHoras(maximo.Hora, incrementarHora(maximo.Hora))}
+									fecha={fechaSeleccionada}
+									zona={zona}
+									indiceAhora={indiceAhora === -1 ? null : indiceAhora}
+									bloque={bloque}
 								/>
-							</dl>
-	
-							<SelectorDuracion
-								duracion={duracion}
-								onDuracion={(valor) => actualizar({ duracion: valor })}
-								bloque={bloque}
-								unidad={unidad}
-								horasDia={precios.length}
-							/>
-	
-							<FranjaHoras
-								key={`${fechaMostrada}-${zona}`}
-								precios={precios}
-								unidad={unidad}
-								fecha={fechaSeleccionada}
-								zona={zona}
-								indiceAhora={indiceAhora === -1 ? null : indiceAhora}
-								bloque={bloque}
-							/>
-	
-							<TablaHoras
-								precios={precios}
-								unidad={unidad}
-								fecha={fechaSeleccionada}
-								zona={zona}
-							/>
-						</>
-					)}
-				</div>
+		
+								<TablaHoras
+									precios={precios}
+									unidad={unidad}
+									fecha={fechaSeleccionada}
+									zona={zona}
+								/>
+							</>
+						)}
+					</div>
+					</>
+				)}
 			</main>
 
 			<footer className="mx-auto max-w-5xl px-4 sm:px-8">
@@ -450,11 +506,11 @@ export default function App() {
 					Precio del término de energía de la tarifa PVPC (2.0TD) publicado por
 					Red Eléctrica en ESIOS. No incluye impuestos.
 				</p>
-				<p className="hidden pb-6 text-sm text-suave [@media(pointer:fine)]:block">
+				{vista === "dia" && <p className="hidden pb-6 text-sm text-suave [@media(pointer:fine)]:block">
 					Atajos de teclado: <kbd className="font-sans font-medium">←</kbd> y{" "}
 					<kbd className="font-sans font-medium">→</kbd> cambian de día,{" "}
 					<kbd className="font-sans font-medium">H</kbd> vuelve a hoy.
-				</p>
+				</p>}
 			</footer>
 		</div>
 	);

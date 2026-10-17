@@ -14,8 +14,9 @@ Aplicación web que muestra el precio horario de la luz en España (tarifa PVPC)
 - Selección de cualquier día desde el 01/04/2014 (primer día con PVPC publicado) hasta mañana, con el calendario, con los botones de día anterior y día siguiente o con el teclado (<kbd>←</kbd> y <kbd>→</kbd> cambian de día, <kbd>H</kbd> vuelve a hoy). Red Eléctrica publica los precios del día siguiente hacia las 20:15; cuando ya están disponibles, aparece un botón «Ver los precios de mañana».
 - Selección de zona: Península, Canarias y Baleares, o Ceuta y Melilla.
 - Precios en €/kWh o €/MWh.
+- **Histórico** (en construcción): precio medio de cada año desde 2014, con el día más barato y el más caro.
 - Se puede **instalar como aplicación** en el ordenador y en el móvil, y muestra los últimos precios consultados aunque no haya conexión (ver más abajo).
-- La fecha, la zona, la unidad y la duración elegida quedan en la URL, así que se puede compartir el enlace a un día concreto.
+- La vista (día o histórico), la fecha, la zona, la unidad y la duración elegida quedan en la URL, así que se puede compartir el enlace a un día concreto o al histórico.
 
 ## Instalar la aplicación
 
