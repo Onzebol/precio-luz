@@ -5,6 +5,7 @@ import { HITOS, cambiosEntre } from "../hitos";
 import { diaYMes, formatearPrecio } from "../utils";
 import { Segmentado } from "./Controles";
 import { GraficoEvolucion } from "./GraficoEvolucion";
+import { MismoMes } from "./MismoMes";
 import { PerfilesAnuales } from "./PerfilesAnuales";
 
 // Años del perfil horario: antes de la 2.0TD y de la solar masiva, el año de la crisis y el actual
@@ -108,6 +109,41 @@ const puntosEvolucion = (dias, zona, rango) => {
 	}));
 };
 
+// Récords de todo el histórico y días con alguna hora a precio negativo
+const cifrasDestacadas = (dias, zona) => {
+	const d = DESPLAZAMIENTO[zona];
+	const fechas = Object.keys(dias).sort();
+	const mayor = (posicion) =>
+		fechas.reduce((mejor, fecha) => (dias[fecha][posicion] > dias[mejor][posicion] ? fecha : mejor));
+	const menor = (posicion) =>
+		fechas.reduce((mejor, fecha) => (dias[fecha][posicion] < dias[mejor][posicion] ? fecha : mejor));
+	const diaCaro = mayor(d);
+	const diaBarato = menor(d);
+	const horaCara = mayor(d + 2);
+	const negativos = fechas.filter((fecha) => dias[fecha][d + 1] < 0);
+	return {
+		diaCaro: { fecha: diaCaro, valor: dias[diaCaro][d] },
+		diaBarato: { fecha: diaBarato, valor: dias[diaBarato][d] },
+		horaCara: { fecha: horaCara, valor: dias[horaCara][d + 2], hora: dias[horaCara][d + 4] },
+		negativos,
+	};
+};
+
+const fechaConAnio = (fecha) =>
+	new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", year: "numeric" }).format(
+		parseISO(fecha)
+	);
+
+function Cifra({ etiqueta, valor, detalle }) {
+	return (
+		<div>
+			<dt className="text-sm text-suave">{etiqueta}</dt>
+			<dd className="font-display text-2xl font-semibold sm:text-3xl">{valor}</dd>
+			<dd className="text-sm text-suave">{detalle}</dd>
+		</div>
+	);
+}
+
 // Precio y, debajo, el día: así la tabla cabe a lo ancho en el móvil
 function Dia({ fecha, media, precio }) {
 	return (
@@ -151,7 +187,17 @@ export function Historico({ zona, unidad }) {
 	const perfilesDibujados = [...ANIOS_PERFIL, Math.max(...perfiles.keys())]
 		.map((anio) => perfiles.get(anio))
 		.filter(Boolean);
+	const mensuales = useMemo(
+		() => (resumen ? puntosEvolucion(resumen.dias, zona, "todo") : []),
+		[resumen, zona]
+	);
+	const cifras = useMemo(
+		() => (resumen ? cifrasDestacadas(resumen.dias, zona) : null),
+		[resumen, zona]
+	);
 	const precio = (valor) => formatearPrecio(unidad === "MWh" ? valor : valor / 1000, unidad);
+	// "0,715 €" -> "0,715"; la unidad va aparte, como en la vista de día
+	const numero = (valor) => precio(valor).replace(/\s*€$/, "");
 
 	return (
 		<>
@@ -162,6 +208,37 @@ export function Historico({ zona, unidad }) {
 				Cómo ha cambiado el precio desde abril de 2014, el primer día publicado por Red
 				Eléctrica. Sin impuestos y sin ajustar por la inflación.
 			</p>
+
+			{cifras && (
+				<dl className="mt-10 grid grid-cols-2 gap-x-6 gap-y-6 border-t border-linea pt-6 sm:grid-cols-4">
+					<Cifra
+						etiqueta="Día más caro"
+						valor={numero(cifras.diaCaro.valor)}
+						detalle={`${fechaConAnio(cifras.diaCaro.fecha)}, media en €/${unidad}`}
+					/>
+					<Cifra
+						etiqueta="Día más barato"
+						valor={numero(cifras.diaBarato.valor)}
+						detalle={`${fechaConAnio(cifras.diaBarato.fecha)}, media en €/${unidad}`}
+					/>
+					<Cifra
+						etiqueta="Hora más cara"
+						valor={numero(cifras.horaCara.valor)}
+						detalle={`${fechaConAnio(cifras.horaCara.fecha)}, de ${cifras.horaCara.hora} a ${
+							cifras.horaCara.hora + 1
+						} h, en €/${unidad}`}
+					/>
+					<Cifra
+						etiqueta="Días con precios negativos"
+						valor={cifras.negativos.length}
+						detalle={
+							cifras.negativos.length
+								? `Con alguna hora por debajo de 0; el primero, el ${fechaConAnio(cifras.negativos[0])}`
+								: "Ninguna hora por debajo de 0"
+						}
+					/>
+				</dl>
+			)}
 
 			{resumen && (
 				<section aria-labelledby="titulo-evolucion" className="mt-10 border-t border-linea pt-6">
@@ -262,6 +339,19 @@ export function Historico({ zona, unidad }) {
 						son mucho mayores.
 					</p>
 					<PerfilesAnuales perfiles={perfilesDibujados} />
+				</section>
+			)}
+
+			{mensuales.length > 0 && (
+				<section aria-labelledby="titulo-mismo-mes" className="mt-14 border-t border-linea pt-6">
+					<h2 id="titulo-mismo-mes" className="font-display text-xl font-semibold">
+						El mismo mes, año a año
+					</h2>
+					<p className="mt-2 max-w-prose text-suave">
+						Comparar el mismo mes quita el efecto de la estación: el invierno suele ser
+						más caro que la primavera.
+					</p>
+					<MismoMes mensuales={mensuales} unidad={unidad} />
 				</section>
 			)}
 
