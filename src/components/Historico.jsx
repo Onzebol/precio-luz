@@ -1,9 +1,14 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { parseISO } from "date-fns";
+import { perfilAnio } from "../comparativas";
 import { HITOS, cambiosEntre } from "../hitos";
 import { diaYMes, formatearPrecio } from "../utils";
 import { Segmentado } from "./Controles";
 import { GraficoEvolucion } from "./GraficoEvolucion";
+import { PerfilesAnuales } from "./PerfilesAnuales";
+
+// Años del perfil horario: antes de la 2.0TD y de la solar masiva, el año de la crisis y el actual
+const ANIOS_PERFIL = [2019, 2022];
 
 // "2021-06-01" -> "1/6/2021"
 const fechaCorta = (fecha) => new Intl.DateTimeFormat("es-ES").format(parseISO(fecha));
@@ -137,6 +142,15 @@ export function Historico({ zona, unidad }) {
 		() => (resumen ? puntosEvolucion(resumen.dias, zona, rango) : []),
 		[resumen, zona, rango]
 	);
+	// Perfil horario medio de cada año (para la tabla) y los que se dibujan
+	const perfiles = useMemo(() => {
+		if (!resumen) return new Map();
+		const anios = new Set(Object.keys(resumen.perfiles).map((mes) => Number(mes.slice(0, 4))));
+		return new Map([...anios].map((anio) => [anio, perfilAnio(resumen.perfiles, anio, zona)]));
+	}, [resumen, zona]);
+	const perfilesDibujados = [...ANIOS_PERFIL, Math.max(...perfiles.keys())]
+		.map((anio) => perfiles.get(anio))
+		.filter(Boolean);
 	const precio = (valor) => formatearPrecio(unidad === "MWh" ? valor : valor / 1000, unidad);
 
 	return (
@@ -236,6 +250,21 @@ export function Historico({ zona, unidad }) {
 				</div>
 			)}
 
+			{resumen && perfilesDibujados.length > 0 && (
+				<section aria-labelledby="titulo-perfiles" className="mt-14 border-t border-linea pt-6">
+					<h2 id="titulo-perfiles" className="font-display text-xl font-semibold">
+						¿A qué hora es más barata?
+					</h2>
+					<p className="mt-2 max-w-prose text-suave">
+						Cada barra es una hora del día: cuánto más cara o más barata es, de media
+						en el año, que la media del día. Con la llegada de la solar, la hora más
+						barata ha pasado de la madrugada al mediodía y las diferencias entre horas
+						son mucho mayores.
+					</p>
+					<PerfilesAnuales perfiles={perfilesDibujados} />
+				</section>
+			)}
+
 			{resumen && (
 				<section aria-labelledby="titulo-anios" className="mt-14 overflow-x-auto border-t border-linea pt-6">
 					<h2 id="titulo-anios" className="font-display text-xl font-semibold">
@@ -265,6 +294,11 @@ export function Historico({ zona, unidad }) {
 									<tr className="border-b border-linea/60">
 										<th scope="row" className="py-2 pr-4 font-medium">
 											{anio.anio}
+											{perfiles.get(Number(anio.anio)) && (
+												<span className="block whitespace-nowrap text-sm font-normal text-suave">
+													barata a las {perfiles.get(Number(anio.anio)).barata} h
+												</span>
+											)}
 										</th>
 										<td className="whitespace-nowrap py-2 pr-4 text-right font-medium">
 											{precio(anio.media)}

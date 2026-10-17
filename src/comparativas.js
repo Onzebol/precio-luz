@@ -53,3 +53,23 @@ export const compararConHabitual = (medias, fecha, zona, mediaDia) => {
 		cambio: comparables.length ? null : ultimoCambio,
 	};
 };
+
+// Perfil medio de un año: cada hora del reloj respecto a la media del día (−0,4 = un 40 % más barata).
+// perfiles: { "AAAA-MM": { PCB: [24], CYM: [24] } } de resumen.json
+export const perfilAnio = (perfiles, anio, zona) => {
+	const meses = Object.keys(perfiles).filter((mes) => mes.startsWith(`${anio}-`));
+	if (!meses.length) return null;
+	const horas = Array.from(
+		{ length: 24 },
+		(_, hora) => meses.reduce((suma, mes) => suma + perfiles[mes][zona][hora], 0) / meses.length
+	);
+	const media = horas.reduce((suma, valor) => suma + valor, 0) / horas.length;
+	const relativos = horas.map((valor) => valor / media - 1);
+	return {
+		anio,
+		meses: meses.length,
+		relativos,
+		barata: relativos.indexOf(Math.min(...relativos)),
+		cara: relativos.indexOf(Math.max(...relativos)),
+	};
+};
