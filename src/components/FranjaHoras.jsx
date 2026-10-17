@@ -14,6 +14,13 @@ const colorNivel = {
 	alto: "bg-caro",
 };
 
+// La barra seleccionada se distingue con un tono más oscuro de su mismo color
+const colorNivelIntenso = {
+	bajo: "bg-barato-intenso",
+	medio: "bg-medio-intenso",
+	alto: "bg-caro-intenso",
+};
+
 const textoNivel = {
 	bajo: "precio bajo",
 	medio: "precio medio",
@@ -30,7 +37,7 @@ const fondoPeriodo = {
 export function FranjaCargando() {
 	return (
 		<div aria-hidden="true" className="mt-10">
-			<div className="h-6" />
+			<div className="h-10" />
 			<div className="flex h-56 items-end gap-[2px] sm:h-72 sm:gap-1">
 				{Array.from({ length: 24 }, (_, i) => (
 					<span
@@ -44,7 +51,7 @@ export function FranjaCargando() {
 	);
 }
 
-export function FranjaHoras({ precios, unidad, fecha, zona, indiceAhora }) {
+export function FranjaHoras({ precios, unidad, fecha, zona, indiceAhora, bloque }) {
 	const indiceMinimo = precios.reduce(
 		(minimo, item, i) => (item.Precio < precios[minimo].Precio ? i : minimo),
 		0
@@ -78,8 +85,21 @@ export function FranjaHoras({ precios, unidad, fecha, zona, indiceAhora }) {
 				{seleccion === indiceAhora && <span className="text-suave"> (ahora)</span>}
 			</p>
 
+			{/* Corchete sobre las horas del bloque elegido en el selector de duración */}
 			<div
-				className="relative mt-3 grid h-56 gap-[2px] sm:h-72 sm:gap-1"
+				aria-hidden="true"
+				className="mt-3 grid h-3 gap-[2px] sm:gap-1"
+				style={columnas}
+			>
+				{bloque && (
+					<span
+						className="rounded-t-[3px] border-2 border-b-0 border-tinta"
+						style={{ gridColumn: `${bloque.inicio + 1} / span ${bloque.horas}` }}
+					/>
+				)}
+			</div>
+			<div
+				className="relative mt-1 grid h-56 gap-[2px] sm:h-72 sm:gap-1"
 				style={columnas}
 			>
 				{base > 0 && (
@@ -113,15 +133,18 @@ export function FranjaHoras({ precios, unidad, fecha, zona, indiceAhora }) {
 						>
 							{i === indiceAhora && (
 								<span
-									className="pointer-events-none absolute left-1/2 -translate-x-1/2 whitespace-nowrap text-xs font-medium text-tinta"
+									// En móvil la barra es estrecha: el texto va en vertical para no tapar las vecinas
+									className="pointer-events-none absolute left-1/2 -translate-x-1/2 rotate-180 whitespace-nowrap text-xs font-medium leading-none text-tinta [writing-mode:vertical-rl] sm:rotate-0 sm:leading-normal sm:[writing-mode:horizontal-tb]"
 									style={{ bottom: `calc(${cima}% + 6px)` }}
 								>
 									ahora
 								</span>
 							)}
 							<span
-								className={`absolute inset-x-0 ${redondeo} ${colorNivel[item.Nivel]} ${
-									elegidaAhora ? "opacity-100 ring-2 ring-inset ring-tinta" : "opacity-80"
+								className={`absolute inset-x-0 ${redondeo} ${
+									elegidaAhora
+										? colorNivelIntenso[item.Nivel]
+										: `${colorNivel[item.Nivel]} opacity-80`
 								}`}
 								style={{ bottom: `${desde}%`, height: `${alto}%` }}
 							/>

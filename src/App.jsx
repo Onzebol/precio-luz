@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { parseISO } from "date-fns";
 import { Controles } from "./components/Controles";
+import { SelectorDuracion } from "./components/SelectorDuracion";
 import { FranjaCargando, FranjaHoras } from "./components/FranjaHoras";
 import { TablaHoras } from "./components/TablaHoras";
 import {
+	DURACIONES,
 	StringToNumerLocale,
 	diaYMes,
 	fechaLarga,
@@ -15,6 +17,7 @@ import {
 	ordenarPrecios,
 	rangoHoras,
 	tramoMasBarato,
+	mejorBloque,
 } from "./utils";
 
 const FECHA_MINIMA = "2014-03-31";
@@ -74,14 +77,18 @@ const leerParametros = () => {
 				: hoy(),
 		zona: parametros.get("zona") === "cym" ? "CYM" : "PCB",
 		unidad: parametros.get("unidad") === "mwh" ? "MWh" : "kWh",
+		duracion: DURACIONES.includes(Number(parametros.get("duracion")))
+			? Number(parametros.get("duracion"))
+			: null,
 	};
 };
 
-const escribirParametros = ({ fecha, zona, unidad }) => {
+const escribirParametros = ({ fecha, zona, unidad, duracion }) => {
 	const parametros = new URLSearchParams();
 	if (fecha !== hoy()) parametros.set("fecha", fecha);
 	if (zona !== "PCB") parametros.set("zona", "cym");
 	if (unidad !== "kWh") parametros.set("unidad", "mwh");
+	if (duracion) parametros.set("duracion", duracion);
 	const consulta = parametros.toString();
 	window.history.replaceState(
 		null,
@@ -129,7 +136,7 @@ function Dato({ etiqueta, precio, unidad, detalle }) {
 
 export default function App() {
 	const [parametros, setParametros] = useState(leerParametros);
-	const { fecha, zona, unidad } = parametros;
+	const { fecha, zona, unidad, duracion } = parametros;
 	const [data, setData] = useState(null);
 	const [estado, setEstado] = useState("cargando");
 	const [intento, setIntento] = useState(0);
@@ -171,6 +178,7 @@ export default function App() {
 		? precios.reduce((total, item) => total + item.Precio, 0) / precios.length
 		: null;
 	const tramo = hayPrecios ? tramoMasBarato(precios) : null;
+	const bloque = hayPrecios && duracion ? mejorBloque(precios, duracion) : null;
 
 	const esHoy = fecha === hoy();
 	const horaActual = new Date().getHours();
@@ -296,6 +304,14 @@ export default function App() {
 							/>
 						</dl>
 
+						<SelectorDuracion
+							duracion={duracion}
+							onDuracion={(valor) => actualizar({ duracion: valor })}
+							bloque={bloque}
+							unidad={unidad}
+							horasDia={precios.length}
+						/>
+
 						<FranjaHoras
 							key={`${fecha}-${zona}`}
 							precios={precios}
@@ -303,6 +319,7 @@ export default function App() {
 							fecha={fechaSeleccionada}
 							zona={zona}
 							indiceAhora={indiceAhora === -1 ? null : indiceAhora}
+							bloque={bloque}
 						/>
 
 						<TablaHoras

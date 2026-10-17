@@ -8,12 +8,13 @@ Aplicación web que muestra el precio horario de la luz en España (tarifa PVPC)
 
 - Las tres horas seguidas más baratas del día, destacadas al abrir la página.
 - Precio de la hora actual, el más bajo, el medio y el más alto del día.
+- Selector de duración (1, 2, 3, 4, 6 u 8 horas): indica a qué hora empezar algo que dura ese tiempo (lavadora, lavavajillas, carga del coche…) para pagar el precio medio más bajo, y lo marca en el gráfico.
 - Gráfico de barras con el precio de cada hora, coloreado según sea bajo, medio o alto, y con los periodos de peaje (valle, llano y punta).
 - Tabla hora a hora con el precio, el nivel y el periodo de cada hora.
 - Selección de cualquier día desde el 31/03/2014 hasta mañana (cuando Red Eléctrica ya ha publicado los precios).
 - Selección de zona: Península, Canarias y Baleares, o Ceuta y Melilla.
 - Precios en €/kWh o €/MWh.
-- La fecha, la zona y la unidad quedan en la URL, así que se puede compartir el enlace a un día concreto.
+- La fecha, la zona, la unidad y la duración elegida quedan en la URL, así que se puede compartir el enlace a un día concreto.
 
 ## Tecnologías
 

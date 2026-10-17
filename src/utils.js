@@ -117,6 +117,29 @@ export const tramoMasBarato = (data, margen = 0.15) => {
 	};
 };
 
+// Duraciones que ofrece el selector "¿Cuánto dura lo que vas a poner?"
+export const DURACIONES = [1, 2, 3, 4, 6, 8];
+
+// Bloque de `horas` horas seguidas con el precio medio más bajo (en empate, el primero)
+export const mejorBloque = (data, horas) => {
+	if (!data || data.length < horas) return null;
+	let mejor = null;
+	for (let i = 0; i + horas <= data.length; i++) {
+		const bloque = data.slice(i, i + horas);
+		const media = bloque.reduce((total, item) => total + item.Precio, 0) / horas;
+		if (mejor === null || media < mejor.media) {
+			mejor = {
+				inicio: i,
+				horas,
+				desde: bloque[0].Hora,
+				hasta: incrementarHora(bloque[horas - 1].Hora),
+				media,
+			};
+		}
+	}
+	return mejor;
+};
+
 // Fechas en hora local (toISOString usaría UTC y daría el día anterior de madrugada)
 export const hoy = () => format(new Date(), "yyyy-MM-dd");
 export const manana = () => format(addDays(new Date(), 1), "yyyy-MM-dd");

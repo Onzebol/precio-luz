@@ -22,10 +22,10 @@ Cada push a `main` dispara `.github/workflows/deploy.yml`, que construye y publi
 
 ## Arquitectura
 
-`src/App.jsx` concentra el estado y la carga de datos; `src/utils.js` contiene helpers puros (formato, fechas, periodos, niveles); `src/components/` tiene las piezas visuales: `Controles` (fecha, zona, unidad), `FranjaHoras` (las 24 barras, protagonista de la página), `TablaHoras` (detalle desplegable).
+`src/App.jsx` concentra el estado y la carga de datos; `src/utils.js` contiene helpers puros (formato, fechas, periodos, niveles); `src/components/` tiene las piezas visuales: `Controles` (fecha, zona, unidad; exporta también `Segmentado`, el grupo de botones de opción reutilizable), `SelectorDuracion`, `FranjaHoras` (las 24 barras, protagonista de la página), `TablaHoras` (detalle desplegable).
 
 Flujo de datos:
-1. Fecha, zona y unidad se leen de la URL (`?fecha=YYYY-MM-DD&zona=cym&unidad=mwh`) y se reescriben con `history.replaceState`; los valores por defecto (hoy, PCB, kWh) no aparecen en la URL.
+1. Fecha, zona, unidad y duración se leen de la URL (`?fecha=YYYY-MM-DD&zona=cym&unidad=mwh&duracion=2`) y se reescriben con `history.replaceState`; los valores por defecto (hoy, PCB, kWh, sin duración) no aparecen en la URL.
 2. `pedirDatos(fecha, signal)` llama a `https://api.esios.ree.es/archives/70/download_json?date=YYYY-MM-DD` (API key en la cabecera `x-api-key`, embebida en el cliente) y normaliza `data.PVPC` a `{ Hora: "HH:00", PCB, CYM }`. Los precios llegan como strings con formato español (`"123,45"`) y se convierten con `StringToNumerLocale`. Algunos días antiguos traen solo `GEN` en lugar de `PCB`/`CYM`, de ahí el fallback.
 3. Para días sin publicar (p. ej. mañana antes de ~20:30) la API responde **HTTP 200** con `{"message": "No values for specified archive"}`; se detecta y se lanza `SinDatos`. `estado` puede ser `cargando`, `ok`, `sin-datos` o `error`.
 4. Los precios de la API vienen en €/MWh; para kWh se dividen entre 1000. `formatearPrecio` usa 3 decimales en el resumen y 5 en el detalle para kWh (2 para MWh).
@@ -39,8 +39,9 @@ Conceptos de dominio:
 - **Periodos de peaje** (`periodoPeaje`): valle/llano/punta según hora, día de la semana (fin de semana = todo valle) y zona; CYM tiene un reparto de horas distinto. No contempla festivos nacionales.
 - **Nivel de precio** (`nivelesPrecio`): divide el rango min–max del día en tercios (bajo/medio/alto); colorea las barras.
 - **Tramo más barato** (`tramoMasBarato`): parte de la hora más barata y se extiende mientras las horas vecinas no superen el mínimo + 15 % del rango del día; es el titular de la página. El umbral se eligió comparando con datos reales (resultados estables entre 10 % y 20 %).
+- **Mejor bloque** (`mejorBloque`): para la duración elegida en el selector (1, 2, 3, 4, 6 u 8 h), las horas seguidas con menor precio medio; en empate, el primero. Se marca con un corchete sobre las barras. No cruza la medianoche.
 - Puede haber **precios negativos** (p. ej. 12/10/2026); las barras los recortan a 0.
 
 ## Diseño
 
-Tokens en `tailwind.config.js`: colores `papel`, `tinta`, `suave`, `linea` y `barato`/`medio`/`caro` (solo para el nivel de precio); tipografías Barlow (`font-sans`) y Barlow Semi Condensed (`font-display`, cifras y titulares), cargadas desde Google Fonts en `index.html`. No hay librería de componentes: todo es Tailwind sobre HTML semántico.
+Tokens en `tailwind.config.js`: colores `papel`, `tinta`, `suave`, `linea` y `barato`/`medio`/`caro` (solo para el nivel de precio; cada uno con una variante `-intenso`, más oscura, para la barra seleccionada); tipografías Barlow (`font-sans`) y Barlow Semi Condensed (`font-display`, cifras y titulares), cargadas desde Google Fonts en `index.html`. No hay librería de componentes: todo es Tailwind sobre HTML semántico.

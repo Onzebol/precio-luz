@@ -9,9 +9,9 @@ export default {
 				tinta: "#17262B",
 				suave: "#55666B",
 				linea: "#C7D1CD",
-				barato: "#2E8B63",
-				medio: "#B8790F",
-				caro: "#C4473A",
+				barato: { DEFAULT: "#2E8B63", intenso: "#1B6646" },
+				medio: { DEFAULT: "#B8790F", intenso: "#8A5A06" },
+				caro: { DEFAULT: "#C4473A", intenso: "#962D22" },
 			},
 			fontFamily: {
 				sans: ["Barlow", "system-ui", "sans-serif"],

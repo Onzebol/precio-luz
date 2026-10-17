@@ -1,7 +1,7 @@
 const anillo =
 	"focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta";
 
-function Segmentado({ leyenda, nombre, opciones, valor, onCambio }) {
+export function Segmentado({ leyenda, nombre, opciones, valor, onCambio }) {
 	return (
 		<fieldset className="min-w-0">
 			<legend className="mb-1 text-sm text-suave">{leyenda}</legend>
