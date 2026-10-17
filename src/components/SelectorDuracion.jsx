@@ -24,7 +24,7 @@ export function SelectorDuracion({ duracion, onDuracion, bloque, unidad, horasDi
 					texto: `${horas} h`,
 				}))}
 			/>
-			<p aria-live="polite" className="mt-3 min-h-[1.5rem] max-w-prose">
+			<p aria-live="polite" className="mt-3 max-w-prose">
 				{bloque && (
 					<>
 						{fraseBloque(bloque, unidad)}{" "}
