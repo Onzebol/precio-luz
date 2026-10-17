@@ -1,42 +1,25 @@
-import { useEffect, useState } from "react";
-import {
-	AreaChart,
-	Badge,
-	Card,
-	Dropdown,
-	DropdownItem,
-	Flex,
-	Grid,
-	Icon,
-	Tab,
-	TabList,
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeaderCell,
-	TableRow,
-	Text,
-} from "@tremor/react";
-import {
-	ArrowSmDownIcon,
-	ArrowSmUpIcon,
-	CalendarIcon,
-	GlobeIcon,
-	LightningBoltIcon,
-	MinusIcon,
-} from "@heroicons/react/outline";
-import { format, parseISO } from "date-fns";
-import { PriceCard } from "./components/PriceCard";
-import Datepicker from "react-tailwindcss-datepicker";
+import { useEffect, useMemo, useState } from "react";
+import { parseISO } from "date-fns";
+import { Controles } from "./components/Controles";
+import { FranjaCargando, FranjaHoras } from "./components/FranjaHoras";
+import { TablaHoras } from "./components/TablaHoras";
 import {
 	StringToNumerLocale,
-	colorearPrecios,
-	euroFormatter,
+	diaYMes,
+	fechaLarga,
+	formatearPrecio,
+	hoy,
 	incrementarHora,
+	manana,
+	nivelesPrecio,
 	ordenarPrecios,
-	periodoPeaje,
+	rangoHoras,
+	tramoMasBarato,
 } from "./utils";
+
+const FECHA_MINIMA = "2014-03-31";
+
+class SinDatos extends Error {}
 
 const pedirDatos = (date, signal) => {
 	return fetch(
@@ -54,8 +37,9 @@ const pedirDatos = (date, signal) => {
 			return response.json();
 		})
 		.then(function (data) {
+			// Para días sin publicar, la API responde 200 con un mensaje en lugar de PVPC
 			if (!Array.isArray(data?.PVPC) || data.PVPC.length === 0)
-				throw new Error("Sin datos");
+				throw new SinDatos();
 			return data.PVPC.map((item) => {
 				const pcb = "PCB" in item ? item.PCB : item.GEN;
 				const cym = "CYM" in item ? item.CYM : item.GEN;
@@ -79,264 +63,264 @@ const filterData = (data, province, unity) => {
 	});
 };
 
-const sinDatos = (data) => data === null || data.length === 0;
-
-const precioMasBajo = (data) => {
-	if (sinDatos(data)) return { price: null, text: "" };
-	const first = ordenarPrecios(data)[0];
+// La fecha, la zona y la unidad viven en la URL para poder compartir el enlace
+const leerParametros = () => {
+	const parametros = new URLSearchParams(window.location.search);
+	const fecha = parametros.get("fecha") ?? "";
 	return {
-		price: first.Precio,
-		text: `de ${first.Hora} a ${incrementarHora(first.Hora)}`,
+		fecha:
+			/^\d{4}-\d{2}-\d{2}$/.test(fecha) && fecha >= FECHA_MINIMA && fecha <= manana()
+				? fecha
+				: hoy(),
+		zona: parametros.get("zona") === "cym" ? "CYM" : "PCB",
+		unidad: parametros.get("unidad") === "mwh" ? "MWh" : "kWh",
 	};
 };
 
-const precioMasAlto = (data) => {
-	if (sinDatos(data)) return { price: null, text: "" };
-	const last = ordenarPrecios(data)[data.length - 1];
-	return {
-		price: last.Precio,
-		text: `de ${last.Hora} a ${incrementarHora(last.Hora)}`,
-	};
-};
-
-const precioMedio = (data) => {
-	if (sinDatos(data)) return { price: null, text: "" };
-	const totalPrecio = data.reduce(
-		(accumulator, currentValue) => accumulator + currentValue.Precio,
-		0
+const escribirParametros = ({ fecha, zona, unidad }) => {
+	const parametros = new URLSearchParams();
+	if (fecha !== hoy()) parametros.set("fecha", fecha);
+	if (zona !== "PCB") parametros.set("zona", "cym");
+	if (unidad !== "kWh") parametros.set("unidad", "mwh");
+	const consulta = parametros.toString();
+	window.history.replaceState(
+		null,
+		"",
+		`${window.location.pathname}${consulta ? `?${consulta}` : ""}`
 	);
-	return {
-		price: totalPrecio / data.length,
-		text: "",
-	};
 };
 
-// Fecha de hoy en hora local (toISOString usaría UTC y daría el día anterior de madrugada)
-const hoy = () => format(new Date(), "yyyy-MM-dd");
+const fraseTramo = (tramo, unidad) => {
+	const minimo = formatearPrecio(tramo.minimo, unidad);
+	const maximo = formatearPrecio(tramo.maximo, unidad);
+	if (tramo.horas === 1)
+		return `Es la única hora con el precio cerca del mínimo del día: ${minimo}/${unidad}.`;
+	if (minimo === maximo)
+		return `Durante esas ${tramo.horas} horas el precio se mantiene en ${minimo}/${unidad}.`;
+	return `Durante esas ${tramo.horas} horas el precio se mantiene entre ${minimo.replace(
+		/\s*€$/,
+		""
+	)} y ${maximo}/${unidad}.`;
+};
+
+const fraseMasBarata = (fecha, tramo) => {
+	const rango = rangoHoras(tramo.desde, tramo.hasta);
+	if (fecha === hoy()) return `Hoy la luz está más barata ${rango}`;
+	if (fecha === manana()) return `Mañana la luz estará más barata ${rango}`;
+	return `El ${diaYMes(fecha)} la luz estuvo más barata ${rango}`;
+};
+
+function Dato({ etiqueta, precio, unidad, detalle }) {
+	// "0,091 €" -> "0,091", la unidad se pinta aparte y más pequeña
+	const numero = formatearPrecio(precio, unidad).replace(/\s*€$/, "");
+	return (
+		<div>
+			<dt className="text-sm text-suave">{etiqueta}</dt>
+			<dd className="font-display text-2xl font-semibold sm:text-3xl">
+				{numero}
+				<span className="ml-1 font-sans text-sm font-normal text-suave">
+					€/{unidad}
+				</span>
+			</dd>
+			{detalle && <dd className="text-sm text-suave">{detalle}</dd>}
+		</div>
+	);
+}
 
 export default function App() {
-	const [unity, setUnity] = useState("kWh");
-	const [province, setProvince] = useState("PCB");
-	const [selectedView, setSelectedView] = useState("1");
+	const [parametros, setParametros] = useState(leerParametros);
+	const { fecha, zona, unidad } = parametros;
 	const [data, setData] = useState(null);
 	const [estado, setEstado] = useState("cargando");
-	const [lowPrice, setLowPrice] = useState({ price: null, text: "" });
-	const [hightPrice, setHightPrice] = useState({ price: null, text: "" });
-	const [middlePrice, setMiddletPrice] = useState({ price: null, text: "" });
-	const [dataFiltered, setDataFiltered] = useState(null);
-	const [date, setDate] = useState({
-		startDate: hoy(),
-		endDate: hoy(),
-	});
+	const [intento, setIntento] = useState(0);
 
-	const numDigits = unity === "kWh" ? 5 : 2;
-	// parseISO interpreta "YYYY-MM-DD" en hora local, a diferencia de new Date()
-	const fechaSeleccionada = parseISO(date.startDate);
+	const actualizar = (cambios) =>
+		setParametros((anteriores) => ({ ...anteriores, ...cambios }));
+
+	useEffect(() => {
+		escribirParametros(parametros);
+	}, [parametros]);
 
 	useEffect(() => {
 		const controller = new AbortController();
 		setEstado("cargando");
 		setData(null);
-		pedirDatos(date.startDate, controller.signal)
+		pedirDatos(fecha, controller.signal)
 			.then((data) => {
 				setData(data);
 				setEstado("ok");
 			})
 			.catch((error) => {
 				if (error.name === "AbortError") return;
-				setEstado("error");
+				setEstado(error instanceof SinDatos ? "sin-datos" : "error");
 			});
 		return () => controller.abort();
-	}, [date]);
+	}, [fecha, intento]);
 
-	useEffect(() => {
-		const dataFiltered = filterData(data, province, unity);
-		setDataFiltered(dataFiltered);
-		setLowPrice(precioMasBajo(dataFiltered));
-		setHightPrice(precioMasAlto(dataFiltered));
-		setMiddletPrice(precioMedio(dataFiltered));
-	}, [data, unity, province]);
+	// parseISO interpreta "YYYY-MM-DD" en hora local, a diferencia de new Date()
+	const fechaSeleccionada = parseISO(fecha);
+	const precios = useMemo(
+		() => nivelesPrecio(filterData(data, zona, unidad)),
+		[data, zona, unidad]
+	);
+	const hayPrecios = estado === "ok" && precios.length > 0;
+	const ordenados = hayPrecios ? ordenarPrecios(precios) : [];
+	const minimo = ordenados[0];
+	const maximo = ordenados[ordenados.length - 1];
+	const media = hayPrecios
+		? precios.reduce((total, item) => total + item.Precio, 0) / precios.length
+		: null;
+	const tramo = hayPrecios ? tramoMasBarato(precios) : null;
 
-	const handleChangeDate = (selectedDate) => {
-		if (!selectedDate?.startDate) return;
-		setDate(selectedDate);
-	};
+	const esHoy = fecha === hoy();
+	const horaActual = new Date().getHours();
+	const indiceAhora =
+		hayPrecios && esHoy
+			? precios.findIndex((item) => parseInt(item.Hora) === horaActual)
+			: -1;
+
+	let titular = "Precio de la luz";
+	if (hayPrecios) titular = fraseMasBarata(fecha, tramo);
+	if (estado === "sin-datos") titular = `Aún no hay precios para el ${diaYMes(fecha)}`;
+	if (estado === "error") titular = "No se han podido cargar los precios";
 
 	return (
-		<>
-			<main className="bg-slate-50 p-6 sm:p-10">
-				<h1 className="text-lg font-medium text-gray-700">Precio de la luz</h1>
-				<Text>Información del precio de la luz obtenida de REE</Text>
-				<Grid numColsLg={3} className="mt-6 gap-6">
-					<Card decoration="top" decorationColor="stone">
-						<Flex justifyContent="start" className="space-x-4">
-							<Icon
-								icon={CalendarIcon}
-								variant="solid"
-								size="xl"
-								color="stone"
-								aria-hidden="true"
-							/>
-							<div className="w-full">
-								<label
-									htmlFor="inputDate"
-									className="text-sm font-normal text-gray-500"
-								>
-									Selecciona una fecha
-								</label>
-								<Datepicker
-									inputId="inputDate"
-									i18n={"es"}
-									startWeekOn="mon"
-									value={date}
-									onChange={handleChangeDate}
-									asSingle={true}
-									useRange={false}
-									minDate={new Date("2014-03-31")}
-									maxDate={new Date()}
-								/>
-							</div>
-						</Flex>
-					</Card>
-					<Card decoration="top" decorationColor="purple">
-						<Flex justifyContent="start" className="space-x-4">
-							<Icon
-								icon={GlobeIcon}
-								variant="solid"
-								size="xl"
-								color="purple"
-								aria-hidden="true"
-							/>
-							<div className="w-full" role="group" aria-labelledby="etiquetaZona">
-								<Text id="etiquetaZona">Selecciona la zona</Text>
-								<Dropdown value={province} onValueChange={setProvince}>
-									<DropdownItem
-										value="PCB"
-										text={"Península, Canarias y Baleares"}
-									/>
-									<DropdownItem value="CYM" text={"Ceuta y Melilla"} />
-								</Dropdown>
-							</div>
-						</Flex>
-					</Card>
-					<Card decoration="top" decorationColor="yellow">
-						<Flex justifyContent="start" className="space-x-4">
-							<Icon
-								icon={LightningBoltIcon}
-								variant="solid"
-								size="xl"
-								color="yellow"
-								aria-hidden="true"
-							/>
-							<div
-								className="w-full"
-								role="group"
-								aria-labelledby="etiquetaUnidad"
-							>
-								<Text id="etiquetaUnidad">Selecciona una unidad de medida</Text>
-								<Dropdown value={unity} onValueChange={setUnity}>
-									<DropdownItem value="kWh" text={"Kilovatios hora (kWh)"} />
-									<DropdownItem value="MWh" text={"Megavatios hora (MWh)"} />
-								</Dropdown>
-							</div>
-						</Flex>
-					</Card>
-				</Grid>
+		<div className="min-h-screen font-sans text-tinta">
+			<a
+				href="#contenido"
+				className="sr-only rounded-md bg-tinta px-3 py-2 text-papel focus:not-sr-only focus:absolute focus:left-4 focus:top-4"
+			>
+				Saltar al contenido
+			</a>
 
-				<div aria-live="polite" className="mt-6">
-					{estado === "cargando" && <Text>Cargando precios…</Text>}
-					{estado === "error" && (
-						<Text color="red">
-							No hay precios disponibles para esta fecha. Prueba con otro día
-							o vuelve a intentarlo más tarde.
-						</Text>
-					)}
-				</div>
+			<header className="mx-auto flex max-w-5xl flex-wrap items-end justify-between gap-x-10 gap-y-6 px-4 pt-6 sm:px-8 sm:pt-10">
+				<p className="flex items-center gap-2 font-display text-lg font-semibold">
+					<svg
+						aria-hidden="true"
+						viewBox="0 0 32 32"
+						className="h-7 w-7 shrink-0"
+					>
+						<rect width="32" height="32" rx="7" fill="#17262B" />
+						<path d="M18 3 7 18h7l-2 11 11-15h-7z" fill="#facc15" />
+					</svg>
+					Precio de la luz
+				</p>
+				<Controles
+					fecha={fecha}
+					fechaMinima={FECHA_MINIMA}
+					fechaMaxima={manana()}
+					onFecha={(valor) => actualizar({ fecha: valor })}
+					zona={zona}
+					onZona={(valor) => actualizar({ zona: valor })}
+					unidad={unidad}
+					onUnidad={(valor) => actualizar({ unidad: valor })}
+				/>
+			</header>
 
-				<Grid numColsLg={3} className="mt-6 gap-6">
-					<PriceCard
-						icon={ArrowSmDownIcon}
-						title={`Precio más bajo del ${unity}`}
-						price={euroFormatter(lowPrice.price, numDigits, numDigits)}
-						text={lowPrice?.text}
-						color="green"
-					/>
-					<PriceCard
-						icon={MinusIcon}
-						title={`Precio medio del ${unity}`}
-						price={euroFormatter(middlePrice.price, numDigits, numDigits)}
-						text={middlePrice?.text}
-						color="amber"
-					/>
-					<PriceCard
-						icon={ArrowSmUpIcon}
-						title={`Precio más alto del ${unity}`}
-						price={euroFormatter(hightPrice.price, numDigits, numDigits)}
-						text={hightPrice?.text}
-						color="red"
-					/>
-				</Grid>
-
-				<TabList
-					defaultValue="1"
-					onValueChange={(value) => setSelectedView(value)}
-					className="mt-6"
+			<main id="contenido" className="mx-auto max-w-5xl px-4 pb-16 pt-12 sm:px-8 sm:pt-16">
+				<p className="text-suave first-letter:uppercase">{fechaLarga(fecha)}</p>
+				<h1
+					aria-live="polite"
+					className="mt-2 max-w-[18ch] text-balance font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
 				>
-					<Tab value="1" text="Gráfica" />
-					<Tab value="2" text="Detalles" />
-				</TabList>
+					{titular}
+				</h1>
 
-				{selectedView === "1" ? (
+				{estado === "cargando" && (
 					<>
-						<AreaChart
-							data={dataFiltered ?? []}
-							index="Hora"
-							categories={["Precio"]}
-							colors={["blue"]}
-							valueFormatter={euroFormatter}
-							showLegend={false}
-							className="mt-6"
+						<p className="mt-4 text-suave">Cargando precios…</p>
+						<FranjaCargando />
+					</>
+				)}
+
+				{estado === "sin-datos" && (
+					<div className="mt-4 max-w-prose">
+						<p>
+							{fecha === manana()
+								? "Red Eléctrica publica los precios del día siguiente hacia las 20:30. Vuelve a mirar después de esa hora."
+								: "Red Eléctrica no tiene precios publicados para este día. Elige otra fecha."}
+						</p>
+						{!esHoy && (
+							<button
+								type="button"
+								onClick={() => actualizar({ fecha: hoy() })}
+								className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+							>
+								Ver los precios de hoy
+							</button>
+						)}
+					</div>
+				)}
+
+				{estado === "error" && (
+					<div className="mt-4 max-w-prose">
+						<p>Comprueba tu conexión a internet y vuelve a intentarlo.</p>
+						<button
+							type="button"
+							onClick={() => setIntento((n) => n + 1)}
+							className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+						>
+							Reintentar
+						</button>
+					</div>
+				)}
+
+				{hayPrecios && (
+					<>
+						<p className="mt-4 max-w-prose text-suave">{fraseTramo(tramo, unidad)}</p>
+
+						<dl className="mt-10 grid grid-cols-2 gap-x-6 gap-y-6 border-t border-linea pt-6 sm:grid-cols-4">
+							{indiceAhora !== -1 && (
+								<Dato
+									etiqueta="Ahora"
+									precio={precios[indiceAhora].Precio}
+									unidad={unidad}
+									detalle={rangoHoras(
+										precios[indiceAhora].Hora,
+										incrementarHora(precios[indiceAhora].Hora)
+									)}
+								/>
+							)}
+							<Dato
+								etiqueta="Hora más barata"
+								precio={minimo.Precio}
+								unidad={unidad}
+								detalle={rangoHoras(minimo.Hora, incrementarHora(minimo.Hora))}
+							/>
+							<Dato etiqueta="Media del día" precio={media} unidad={unidad} />
+							<Dato
+								etiqueta="Hora más cara"
+								precio={maximo.Precio}
+								unidad={unidad}
+								detalle={rangoHoras(maximo.Hora, incrementarHora(maximo.Hora))}
+							/>
+						</dl>
+
+						<FranjaHoras
+							key={`${fecha}-${zona}`}
+							precios={precios}
+							unidad={unidad}
+							fecha={fechaSeleccionada}
+							zona={zona}
+							indiceAhora={indiceAhora === -1 ? null : indiceAhora}
+						/>
+
+						<TablaHoras
+							precios={precios}
+							unidad={unidad}
+							fecha={fechaSeleccionada}
+							zona={zona}
 						/>
 					</>
-				) : (
-					<Table className="mt-6">
-						<TableHead>
-							<TableRow>
-								<TableHeaderCell>Hora</TableHeaderCell>
-								<TableHeaderCell className="text-right">{`Precio ${unity}`}</TableHeaderCell>
-								<TableHeaderCell className="text-right">
-									Periodo
-								</TableHeaderCell>
-							</TableRow>
-						</TableHead>
-						<TableBody>
-							{colorearPrecios(dataFiltered).map((item) => {
-								const periodo = periodoPeaje(
-									item.Hora,
-									fechaSeleccionada,
-									province
-								);
-								return (
-									<TableRow key={item.Hora} className={item.Color}>
-										<TableCell>{`de ${item.Hora} a ${incrementarHora(
-											item.Hora
-										)}`}</TableCell>
-										<TableCell className="text-right">
-											{euroFormatter(item.Precio, numDigits, numDigits)}
-											<span className="sr-only">{` (precio ${item.Nivel})`}</span>
-										</TableCell>
-										<TableCell className="text-right">
-											<Badge icon={periodo.icon} size="xs" color={periodo.color}>
-												{periodo.text}
-											</Badge>
-										</TableCell>
-									</TableRow>
-								);
-							})}
-						</TableBody>
-					</Table>
 				)}
 			</main>
-		</>
+
+			<footer className="mx-auto max-w-5xl px-4 sm:px-8">
+				<p className="border-t border-linea py-6 text-sm text-suave">
+					Precio del término de energía de la tarifa PVPC (2.0TD) publicado por
+					Red Eléctrica en ESIOS. No incluye impuestos.
+				</p>
+			</footer>
+		</div>
 	);
 }

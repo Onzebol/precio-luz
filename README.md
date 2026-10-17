@@ -6,19 +6,21 @@ Aplicación web que muestra el precio horario de la luz en España (tarifa PVPC)
 
 ## Funcionalidades
 
-- Selección de cualquier día desde el 31/03/2014 hasta hoy.
+- Las tres horas seguidas más baratas del día, destacadas al abrir la página.
+- Precio de la hora actual, el más bajo, el medio y el más alto del día.
+- Gráfico de barras con el precio de cada hora, coloreado según sea bajo, medio o alto, y con los periodos de peaje (valle, llano y punta).
+- Tabla hora a hora con el precio, el nivel y el periodo de cada hora.
+- Selección de cualquier día desde el 31/03/2014 hasta mañana (cuando Red Eléctrica ya ha publicado los precios).
 - Selección de zona: Península, Canarias y Baleares, o Ceuta y Melilla.
 - Precios en €/kWh o €/MWh.
-- Precio más bajo, medio y más alto del día, con la franja horaria correspondiente.
-- Vista **Gráfica**: evolución del precio a lo largo del día.
-- Vista **Detalles**: tabla hora a hora, coloreada según el precio (barato, medio, caro) y con el periodo de peaje de cada hora (valle, llano o punta).
+- La fecha, la zona y la unidad quedan en la URL, así que se puede compartir el enlace a un día concreto.
 
 ## Tecnologías
 
 - [React 18](https://react.dev/) + [Vite](https://vitejs.dev/)
-- [Tremor](https://www.tremor.so/) para los componentes de la interfaz y las gráficas
 - [Tailwind CSS](https://tailwindcss.com/)
-- [Heroicons](https://heroicons.com/)
+- [date-fns](https://date-fns.org/)
+- Tipografías [Barlow y Barlow Semi Condensed](https://fonts.google.com/specimen/Barlow)
 
 ## Desarrollo
 

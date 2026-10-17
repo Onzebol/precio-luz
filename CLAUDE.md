@@ -22,21 +22,25 @@ Cada push a `main` dispara `.github/workflows/deploy.yml`, que construye y publi
 
 ## Arquitectura
 
-Casi toda la lógica vive en `src/App.jsx`; `src/utils.js` contiene helpers puros y `src/components/PriceCard.jsx` es la tarjeta de métricas.
+`src/App.jsx` concentra el estado y la carga de datos; `src/utils.js` contiene helpers puros (formato, fechas, periodos, niveles); `src/components/` tiene las piezas visuales: `Controles` (fecha, zona, unidad), `FranjaHoras` (las 24 barras, protagonista de la página), `TablaHoras` (detalle desplegable).
 
-Flujo de datos en `App.jsx`:
-1. `pedirDatos(fecha)` llama a `https://api.esios.ree.es/archives/70/download_json?date=YYYY-MM-DD` (la API key va en la cabecera `x-api-key`, embebida en el cliente). Normaliza `data.PVPC` a `{ Hora: "HH:00", PCB, CYM }`. Los precios llegan como strings con formato español (`"123,45"`) y se convierten con `StringToNumerLocale`. Algunos días antiguos traen solo `GEN` en lugar de `PCB`/`CYM`, de ahí el fallback.
-2. Un `useEffect` sobre `date` vuelve a pedir datos; otro sobre `[data, unity, province]` deriva `dataFiltered` (`{ Hora, Precio }`) y las métricas mínimo/medio/máximo.
-3. Los precios de la API vienen en €/MWh; para kWh se dividen entre 1000 (y se muestran con 5 decimales en vez de 2).
+Flujo de datos:
+1. Fecha, zona y unidad se leen de la URL (`?fecha=YYYY-MM-DD&zona=cym&unidad=mwh`) y se reescriben con `history.replaceState`; los valores por defecto (hoy, PCB, kWh) no aparecen en la URL.
+2. `pedirDatos(fecha, signal)` llama a `https://api.esios.ree.es/archives/70/download_json?date=YYYY-MM-DD` (API key en la cabecera `x-api-key`, embebida en el cliente) y normaliza `data.PVPC` a `{ Hora: "HH:00", PCB, CYM }`. Los precios llegan como strings con formato español (`"123,45"`) y se convierten con `StringToNumerLocale`. Algunos días antiguos traen solo `GEN` en lugar de `PCB`/`CYM`, de ahí el fallback.
+3. Para días sin publicar (p. ej. mañana antes de ~20:30) la API responde **HTTP 200** con `{"message": "No values for specified archive"}`; se detecta y se lanza `SinDatos`. `estado` puede ser `cargando`, `ok`, `sin-datos` o `error`.
+4. Los precios de la API vienen en €/MWh; para kWh se dividen entre 1000. `formatearPrecio` usa 3 decimales en el resumen y 5 en el detalle para kWh (2 para MWh).
+
+Fechas: usar siempre los helpers de `utils.js` (`hoy`, `manana`, `parseISO` de date-fns). `new Date("YYYY-MM-DD")` y `toISOString()` trabajan en UTC y desplazan el día.
+
+Los días de cambio de hora tienen 23 o 25 horas: no asumir 24 elementos (por eso las listas usan el índice como `key` y la franja calcula sus columnas con `precios.length`).
 
 Conceptos de dominio:
-- **Zona** (`province`): `PCB` = Península, Canarias y Baleares; `CYM` = Ceuta y Melilla.
-- **Periodos de peaje** (`periodoPeaje` en `utils.js`): valle/llano/punta según hora, día de la semana (fin de semana = todo valle) y zona; CYM tiene un reparto de horas distinto. No contempla festivos nacionales.
-- `colorearPrecios` divide el rango min–max en tercios para colorear filas de la tabla (verde/naranja/rojo).
+- **Zona**: `PCB` = Península, Canarias y Baleares; `CYM` = Ceuta y Melilla.
+- **Periodos de peaje** (`periodoPeaje`): valle/llano/punta según hora, día de la semana (fin de semana = todo valle) y zona; CYM tiene un reparto de horas distinto. No contempla festivos nacionales.
+- **Nivel de precio** (`nivelesPrecio`): divide el rango min–max del día en tercios (bajo/medio/alto); colorea las barras.
+- **Tramo más barato** (`tramoMasBarato`): parte de la hora más barata y se extiende mientras las horas vecinas no superen el mínimo + 15 % del rango del día; es el titular de la página. El umbral se eligió comparando con datos reales (resultados estables entre 10 % y 20 %).
+- Puede haber **precios negativos** (p. ej. 12/10/2026); las barras los recortan a 0.
 
-## Dependencias a tener en cuenta
+## Diseño
 
-- **@tremor/react v2**: usa la API antigua (`Dropdown`/`DropdownItem`, `TabList`/`Tab`, `numColsLg`, `decorationColor`). No usar componentes/props de Tremor v3+ sin migrar.
-- **@heroicons/react v1**: los iconos se importan de `@heroicons/react/outline` con nombres v1 (`ArrowSmDownIcon`, `LightningBoltIcon`...).
-- **Tailwind**: `tailwind.config.js` incluye en `content` los paquetes de Tremor y `react-tailwindcss-datepicker` dentro de `node_modules`; necesario para que sus clases no se purguen.
-- El selector de fecha es `react-tailwindcss-datepicker` (en modo fecha única); `tailwind-datepicker-react` está en `package.json` pero no se usa.
+Tokens en `tailwind.config.js`: colores `papel`, `tinta`, `suave`, `linea` y `barato`/`medio`/`caro` (solo para el nivel de precio); tipografías Barlow (`font-sans`) y Barlow Semi Condensed (`font-display`, cifras y titulares), cargadas desde Google Fonts en `index.html`. No hay librería de componentes: todo es Tailwind sobre HTML semántico.
