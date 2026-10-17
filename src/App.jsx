@@ -503,8 +503,8 @@ export default function App() {
 
 			<footer className="mx-auto max-w-5xl px-4 sm:px-8">
 				<p className="border-t border-linea py-6 text-sm text-suave">
-					Precio del término de energía de la tarifa PVPC (2.0TD) publicado por
-					Red Eléctrica en ESIOS. No incluye impuestos.
+					Precio del término de energía de la tarifa PVPC (2.0TD; hasta mayo de 2021,
+					2.0A) publicado por Red Eléctrica en ESIOS. No incluye impuestos.
 				</p>
 				{vista === "dia" && <p className="hidden pb-6 text-sm text-suave [@media(pointer:fine)]:block">
 					Atajos de teclado: <kbd className="font-sans font-medium">←</kbd> y{" "}

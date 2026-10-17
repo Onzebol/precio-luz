@@ -1,5 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { parseISO } from "date-fns";
+import { HITOS, cambiosEntre } from "../hitos";
 import { diaYMes, formatearPrecio } from "../utils";
+
+// "2021-06-01" -> "1/6/2021"
+const fechaCorta = (fecha) => new Intl.DateTimeFormat("es-ES").format(parseISO(fecha));
 
 // Agregados por día y por mes que genera scripts/actualizar-datos.js. Se pide una sola vez
 let peticion = null;
@@ -80,7 +85,7 @@ export function Historico({ zona, unidad }) {
 			</h1>
 			<p className="mt-4 max-w-prose text-suave">
 				Precio medio de cada año desde abril de 2014, el primer día publicado por Red
-				Eléctrica.
+				Eléctrica. Sin impuestos y sin ajustar por la inflación.
 			</p>
 
 			{!resumen && !error && <p className="mt-10 text-suave">Cargando histórico…</p>}
@@ -123,25 +128,74 @@ export function Historico({ zona, unidad }) {
 						</thead>
 						<tbody>
 							{anios.map((anio) => (
-								<tr key={anio.anio} className="border-b border-linea/60">
-									<th scope="row" className="py-2 pr-4 font-medium">
-										{anio.anio}
-									</th>
-									<td className="whitespace-nowrap py-2 pr-4 text-right font-medium">
-										{precio(anio.media)}
-									</td>
-									<td className="py-2 pr-4">
-										<Dia {...anio.barato} precio={precio} />
-									</td>
-									<td className="py-2">
-										<Dia {...anio.caro} precio={precio} />
-									</td>
-								</tr>
+								<Fragment key={anio.anio}>
+									<tr className="border-b border-linea/60">
+										<th scope="row" className="py-2 pr-4 font-medium">
+											{anio.anio}
+										</th>
+										<td className="whitespace-nowrap py-2 pr-4 text-right font-medium">
+											{precio(anio.media)}
+										</td>
+										<td className="py-2 pr-4">
+											<Dia {...anio.barato} precio={precio} />
+										</td>
+										<td className="py-2">
+											<Dia {...anio.caro} precio={precio} />
+										</td>
+									</tr>
+									{/* Los cambios regulatorios del año, debajo de su fila (la tabla va del más reciente al más antiguo) */}
+									{cambiosEntre(`${anio.anio - 1}-12-31`, `${anio.anio}-12-31`)
+										.reverse()
+										.map((cambio) => (
+											<tr key={cambio.fecha} className="border-b border-linea/60">
+												<td colSpan={4} className="py-1.5 text-sm text-suave">
+													<span aria-hidden="true" className="mr-2 inline-block h-2 w-2 rotate-45 bg-tinta align-middle" />
+													{diaYMes(cambio.fecha)} de {anio.anio}: {cambio.titulo}
+												</td>
+											</tr>
+										))}
+								</Fragment>
 							))}
 						</tbody>
 					</table>
 				</div>
 			)}
+
+			<section aria-labelledby="comparar" className="mt-14 max-w-prose border-t border-linea pt-6">
+				<h2 id="comparar" className="font-display text-xl font-semibold">
+					Antes de comparar
+				</h2>
+				<p className="mt-2 text-suave">
+					Es el precio del término de energía del PVPC con los peajes y cargos incluidos,
+					sin impuestos y en euros de cada año, sin ajustar por la inflación. La forma de
+					calcularlo ha cambiado varias veces, así que las comparaciones que cruzan estas
+					fechas no comparan exactamente lo mismo:
+				</p>
+				<dl className="mt-4 space-y-4">
+					{HITOS.map((hito) => (
+						<div key={hito.fecha}>
+							<dt className="font-medium">
+								{hito.titulo}{" "}
+								<span className="font-normal text-suave">
+									({hito.hasta
+										? `del ${fechaCorta(hito.fecha)} al ${fechaCorta(hito.hasta)}`
+										: `desde el ${fechaCorta(hito.fecha)}`})
+								</span>
+							</dt>
+							<dd className="mt-1">
+								{hito.texto}{" "}
+								<a
+									href={hito.fuente.url}
+									className="underline decoration-linea underline-offset-2 hover:decoration-tinta"
+								>
+									{hito.fuente.texto}
+								</a>
+								.
+							</dd>
+						</div>
+					))}
+				</dl>
+			</section>
 		</>
 	);
 }
