@@ -25,7 +25,7 @@ const FECHA_MINIMA = "2014-03-31";
 
 class SinDatos extends Error {}
 
-const pedirDatos = (date, signal) => {
+const pedirDatos = (date) => {
 	return fetch(
 		`https://api.esios.ree.es/archives/70/download_json?date=${date}`,
 		{
@@ -33,7 +33,6 @@ const pedirDatos = (date, signal) => {
 				"x-api-key":
 					"***REMOVED***",
 			},
-			signal,
 		}
 	)
 		.then((response) => {
@@ -54,6 +53,22 @@ const pedirDatos = (date, signal) => {
 				};
 			});
 		});
+};
+
+// Días ya pedidos (promesas), para que volver a un día o avanzar al precargado sea instantáneo.
+// Solo se guardan los aciertos: si falla (p. ej. mañana aún sin publicar) se borra para reintentar
+const cache = new Map();
+const cargarDia = (fecha) => {
+	if (!cache.has(fecha)) {
+		cache.set(
+			fecha,
+			pedirDatos(fecha).catch((error) => {
+				cache.delete(fecha);
+				throw error;
+			})
+		);
+	}
+	return cache.get(fecha);
 };
 
 const filterData = (data, province, unity) => {
@@ -138,7 +153,8 @@ function Dato({ etiqueta, precio, unidad, detalle }) {
 export default function App() {
 	const [parametros, setParametros] = useState(leerParametros);
 	const { fecha, zona, unidad, duracion } = parametros;
-	const [data, setData] = useState(null);
+	// Datos que se están mostrando y a qué día pertenecen: se conservan mientras carga el siguiente
+	const [datos, setDatos] = useState(null);
 	const [estado, setEstado] = useState("cargando");
 	const [intento, setIntento] = useState(0);
 
@@ -173,19 +189,27 @@ export default function App() {
 	}, []);
 
 	useEffect(() => {
-		const controller = new AbortController();
+		// Si se cambia de día antes de que llegue la respuesta, se descarta
+		let vigente = true;
 		setEstado("cargando");
-		setData(null);
-		pedirDatos(fecha, controller.signal)
+		cargarDia(fecha)
 			.then((data) => {
-				setData(data);
+				if (!vigente) return;
+				setDatos({ fecha, data });
 				setEstado("ok");
+				// Precarga los días vecinos para que las flechas respondan al momento
+				[desplazarDia(fecha, -1), desplazarDia(fecha, 1)]
+					.filter((dia) => dia >= FECHA_MINIMA && dia <= manana())
+					.forEach((dia) => cargarDia(dia).catch(() => {}));
 			})
 			.catch((error) => {
-				if (error.name === "AbortError") return;
+				if (!vigente) return;
+				setDatos(null);
 				setEstado(error instanceof SinDatos ? "sin-datos" : "error");
 			});
-		return () => controller.abort();
+		return () => {
+			vigente = false;
+		};
 	}, [fecha, intento]);
 
 	// Mientras se ve el día de hoy, comprueba si ya están publicados los precios de mañana
@@ -194,7 +218,7 @@ export default function App() {
 	const [hayManana, setHayManana] = useState(false);
 	useEffect(() => {
 		if (fecha !== hoy()) return;
-		const controller = new AbortController();
+		let vigente = true;
 		let temporizador;
 		const siguienteIntento = () => {
 			const ahora = new Date();
@@ -203,26 +227,29 @@ export default function App() {
 			return Math.max(publicacion - ahora, 10 * 60 * 1000);
 		};
 		const comprobar = () =>
-			pedirDatos(manana(), controller.signal)
-				.then(() => setHayManana(true))
-				.catch((error) => {
-					if (error.name === "AbortError") return;
-					temporizador = setTimeout(comprobar, siguienteIntento());
+			cargarDia(manana())
+				.then(() => vigente && setHayManana(true))
+				.catch(() => {
+					if (vigente) temporizador = setTimeout(comprobar, siguienteIntento());
 				});
 		comprobar();
 		return () => {
-			controller.abort();
+			vigente = false;
 			clearTimeout(temporizador);
 		};
 	}, [fecha]);
 
+	// Mientras carga otro día se sigue mostrando el anterior (atenuado si tarda)
+	const fechaMostrada = datos?.fecha ?? fecha;
+	const actualizando = estado === "cargando" && datos !== null;
 	// parseISO interpreta "YYYY-MM-DD" en hora local, a diferencia de new Date()
-	const fechaSeleccionada = parseISO(fecha);
+	const fechaSeleccionada = parseISO(fechaMostrada);
 	const precios = useMemo(
-		() => nivelesPrecio(filterData(data, zona, unidad)),
-		[data, zona, unidad]
+		() => nivelesPrecio(filterData(datos?.data ?? null, zona, unidad)),
+		[datos, zona, unidad]
 	);
-	const hayPrecios = estado === "ok" && precios.length > 0;
+	const hayPrecios =
+		(estado === "ok" || actualizando) && datos !== null && precios.length > 0;
 	const ordenados = hayPrecios ? ordenarPrecios(precios) : [];
 	const minimo = ordenados[0];
 	const maximo = ordenados[ordenados.length - 1];
@@ -235,12 +262,12 @@ export default function App() {
 	const esHoy = fecha === hoy();
 	const horaActual = new Date().getHours();
 	const indiceAhora =
-		hayPrecios && esHoy
+		hayPrecios && fechaMostrada === hoy()
 			? precios.findIndex((item) => parseInt(item.Hora) === horaActual)
 			: -1;
 
 	let titular = "Precio de la luz";
-	if (hayPrecios) titular = fraseMasBarata(fecha, tramo);
+	if (hayPrecios) titular = fraseMasBarata(fechaMostrada, tramo);
 	if (estado === "sin-datos") titular = `Aún no hay precios para el ${diaYMes(fecha)}`;
 	if (estado === "error") titular = "No se han podido cargar los precios";
 
@@ -290,109 +317,117 @@ export default function App() {
 						</button>
 					)}
 				</div>
-				<h1
-					aria-live="polite"
-					className="mt-2 max-w-[18ch] text-balance font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
+				{/* Al cambiar de día se mantiene el contenido; solo se atenúa si la carga pasa de 150 ms */}
+				<div
+					aria-busy={actualizando}
+					className={`transition-opacity duration-200 motion-reduce:transition-none ${
+						actualizando ? "opacity-50 delay-150" : "opacity-100"
+					}`}
 				>
-					{titular}
-				</h1>
-
-				{estado === "cargando" && (
-					<>
-						<p className="mt-4 text-suave">Cargando precios…</p>
-						<FranjaCargando />
-					</>
-				)}
-
-				{estado === "sin-datos" && (
-					<div className="mt-4 max-w-prose">
-						<p>
-							{fecha === manana()
-								? "Red Eléctrica publica los precios del día siguiente hacia las 20:15. Vuelve a mirar después de esa hora."
-								: "Red Eléctrica no tiene precios publicados para este día. Elige otra fecha."}
-						</p>
-						{!esHoy && (
+					<h1
+						aria-live="polite"
+						className="mt-2 max-w-[18ch] text-balance font-display text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
+					>
+						{titular}
+					</h1>
+	
+					{estado === "cargando" && !datos && (
+						<>
+							<p className="mt-4 text-suave">Cargando precios…</p>
+							<FranjaCargando />
+						</>
+					)}
+	
+					{estado === "sin-datos" && (
+						<div className="mt-4 max-w-prose">
+							<p>
+								{fecha === manana()
+									? "Red Eléctrica publica los precios del día siguiente hacia las 20:15. Vuelve a mirar después de esa hora."
+									: "Red Eléctrica no tiene precios publicados para este día. Elige otra fecha."}
+							</p>
+							{!esHoy && (
+								<button
+									type="button"
+									onClick={() => actualizar({ fecha: hoy() })}
+									className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
+								>
+									Ver los precios de hoy
+								</button>
+							)}
+						</div>
+					)}
+	
+					{estado === "error" && (
+						<div className="mt-4 max-w-prose">
+							<p>Comprueba tu conexión a internet y vuelve a intentarlo.</p>
 							<button
 								type="button"
-								onClick={() => actualizar({ fecha: hoy() })}
+								onClick={() => setIntento((n) => n + 1)}
 								className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
 							>
-								Ver los precios de hoy
+								Reintentar
 							</button>
-						)}
-					</div>
-				)}
-
-				{estado === "error" && (
-					<div className="mt-4 max-w-prose">
-						<p>Comprueba tu conexión a internet y vuelve a intentarlo.</p>
-						<button
-							type="button"
-							onClick={() => setIntento((n) => n + 1)}
-							className="mt-4 rounded-md bg-tinta px-4 py-2 font-medium text-papel hover:bg-tinta/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-tinta"
-						>
-							Reintentar
-						</button>
-					</div>
-				)}
-
-				{hayPrecios && (
-					<>
-						<p className="mt-4 max-w-prose text-suave">{fraseTramo(tramo, unidad)}</p>
-
-						<dl className="mt-10 grid grid-cols-2 gap-x-6 gap-y-6 border-t border-linea pt-6 sm:grid-cols-4">
-							{indiceAhora !== -1 && (
+						</div>
+					)}
+	
+					{hayPrecios && (
+						<>
+							<p className="mt-4 max-w-prose text-suave">{fraseTramo(tramo, unidad)}</p>
+	
+							<dl className="mt-10 grid grid-cols-2 gap-x-6 gap-y-6 border-t border-linea pt-6 sm:grid-cols-4">
+								{indiceAhora !== -1 && (
+									<Dato
+										etiqueta="Ahora"
+										precio={precios[indiceAhora].Precio}
+										unidad={unidad}
+										detalle={rangoHoras(
+											precios[indiceAhora].Hora,
+											incrementarHora(precios[indiceAhora].Hora)
+										)}
+									/>
+								)}
 								<Dato
-									etiqueta="Ahora"
-									precio={precios[indiceAhora].Precio}
+									etiqueta="Hora más barata"
+									precio={minimo.Precio}
 									unidad={unidad}
-									detalle={rangoHoras(
-										precios[indiceAhora].Hora,
-										incrementarHora(precios[indiceAhora].Hora)
-									)}
+									detalle={rangoHoras(minimo.Hora, incrementarHora(minimo.Hora))}
 								/>
-							)}
-							<Dato
-								etiqueta="Hora más barata"
-								precio={minimo.Precio}
+								<Dato etiqueta="Media del día" precio={media} unidad={unidad} />
+								<Dato
+									etiqueta="Hora más cara"
+									precio={maximo.Precio}
+									unidad={unidad}
+									detalle={rangoHoras(maximo.Hora, incrementarHora(maximo.Hora))}
+								/>
+							</dl>
+	
+							<SelectorDuracion
+								duracion={duracion}
+								onDuracion={(valor) => actualizar({ duracion: valor })}
+								bloque={bloque}
 								unidad={unidad}
-								detalle={rangoHoras(minimo.Hora, incrementarHora(minimo.Hora))}
+								horasDia={precios.length}
 							/>
-							<Dato etiqueta="Media del día" precio={media} unidad={unidad} />
-							<Dato
-								etiqueta="Hora más cara"
-								precio={maximo.Precio}
+	
+							<FranjaHoras
+								key={`${fechaMostrada}-${zona}`}
+								precios={precios}
 								unidad={unidad}
-								detalle={rangoHoras(maximo.Hora, incrementarHora(maximo.Hora))}
+								fecha={fechaSeleccionada}
+								zona={zona}
+								indiceAhora={indiceAhora === -1 ? null : indiceAhora}
+								bloque={bloque}
 							/>
-						</dl>
-
-						<SelectorDuracion
-							duracion={duracion}
-							onDuracion={(valor) => actualizar({ duracion: valor })}
-							bloque={bloque}
-							unidad={unidad}
-							horasDia={precios.length}
-						/>
-
-						<FranjaHoras
-							key={`${fecha}-${zona}`}
-							precios={precios}
-							unidad={unidad}
-							fecha={fechaSeleccionada}
-							zona={zona}
-							indiceAhora={indiceAhora === -1 ? null : indiceAhora}
-							bloque={bloque}
-						/>
-
-						<TablaHoras
-							precios={precios}
-							unidad={unidad}
-							fecha={fechaSeleccionada}
-							zona={zona}
-						/>
-					</>
-				)}
+	
+							<TablaHoras
+								precios={precios}
+								unidad={unidad}
+								fecha={fechaSeleccionada}
+								zona={zona}
+							/>
+						</>
+					)}
+				</div>
 			</main>
 
 			<footer className="mx-auto max-w-5xl px-4 sm:px-8">
