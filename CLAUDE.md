@@ -45,6 +45,15 @@ Conceptos de dominio:
 - **Mejor bloque** (`mejorBloque`): para la duración elegida en el selector (1, 2, 3, 4, 6 u 8 h), las horas seguidas con menor precio medio; en empate, el primero. Se marca con un corchete sobre las barras. No cruza la medianoche.
 - Puede haber **precios negativos** (p. ej. 12/10/2026); las barras los recortan a 0.
 
+## PWA
+
+`vite-plugin-pwa` (configurado en `vite.config.js`) genera el manifiesto, el service worker (Workbox, `registerType: "autoUpdate"`) y lo registra solo. Fijado en la rama 0.21 porque las versiones posteriores exigen Vite 5 o superior. Estrategias de caché:
+- Recursos de la app: precacheados en cada build.
+- API de ESIOS: `NetworkFirst` (red con 5 s de espera; la copia guardada solo se usa sin conexión).
+- Google Fonts: `StaleWhileRevalidate` para el CSS y `CacheFirst` para las fuentes.
+
+El service worker no se activa con `npm run dev`; para probarlo: `npm run build && npx vite preview`. Los iconos (`public/pwa-*.png`, `maskable-512x512.png`, `apple-touch-icon.png`) se generaron a partir del rayo de `favicon.svg`; la versión *maskable* tiene fondo completo y el rayo dentro de la zona segura.
+
 ## Diseño
 
 Tokens en `tailwind.config.js`: colores `papel`, `tinta`, `suave`, `linea` y `barato`/`medio`/`caro` (solo para el nivel de precio; cada uno con una variante `-intenso`, más oscura, para la barra seleccionada); tipografías Barlow (`font-sans`) y Barlow Semi Condensed (`font-display`, cifras y titulares), cargadas desde Google Fonts en `index.html`. No hay librería de componentes: todo es Tailwind sobre HTML semántico.
