@@ -5,6 +5,7 @@ import { SelectorDuracion } from "./components/SelectorDuracion";
 import { FranjaCargando, FranjaHoras } from "./components/FranjaHoras";
 import { TablaHoras } from "./components/TablaHoras";
 import { FichaPotencia } from "./components/FichaPotencia";
+import { CalculadoraFactura } from "./components/CalculadoraFactura";
 import { compararConHabitual, pedirMedias } from "./comparativas";
 import {
 	DURACIONES,
@@ -578,6 +579,7 @@ export default function App() {
 								/>
 								{/* Valores vigentes (del año en curso), sea cual sea el día elegido */}
 								<FichaPotencia anio={Number(hoy().slice(0, 4))} />
+								{medias && <CalculadoraFactura medias={medias} zona={zona} />}
 							</>
 						)}
 					</div>
