@@ -44,6 +44,7 @@ npm run build     # build de producción en ./dist
 npm run preview   # previsualizar el build
 npm run lint      # comprobar el código con ESLint
 npm run datos     # descargar de ESIOS los precios que falten (requiere ESIOS_API_KEY)
+npm run datos:resumen  # solo regenerar public/datos/resumen.json, sin descargar nada
 ```
 
 ## Despliegue
@@ -66,3 +67,21 @@ El script `scripts/actualizar-datos.js` los descarga y los guarda ya normalizado
 ```
 
 Sin argumentos descarga desde el día siguiente al último guardado hasta mañana; con `--desde AAAA-MM-DD` vuelve a descargar desde esa fecha. El histórico completo (desde el 01/04/2014) ocupa unos 5 MB.
+
+En cada ejecución el script regenera también `public/datos/resumen.json`, con los agregados que necesita el histórico (unos 360 KB, 90 KB comprimido), para no tener que descargar todos los meses:
+
+```json
+{
+"dias":{
+"2014-04-01":[87.19,76.89,100.3,4,10,87.19,76.89,100.3,4,10],
+...
+},
+"perfiles":{
+"2014-04":{"PCB":[24 valores],"CYM":[24 valores]},
+...
+}
+}
+```
+
+- `dias`: por día, para PCB y luego CYM, el precio medio, el mínimo, el máximo y la hora (0-23) del mínimo y del máximo, en €/MWh.
+- `perfiles`: por mes y zona, el precio medio de cada hora del reloj.
