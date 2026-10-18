@@ -128,8 +128,8 @@ const perfilMes = (dias) =>
 		})
 	);
 
-// Precio medio de las horas de punta, llano y valle del mes (periodos de la 2.0TD; no
-// contempla festivos nacionales, como en la web)
+// Precio medio de las horas de punta, llano y valle del mes (periodos de la 2.0TD; los
+// festivos nacionales son valle, como en la web)
 const mediasPeriodo = (dias, zona) => {
 	const sumas = { punta: 0, llano: 0, valle: 0 };
 	const cuentas = { punta: 0, llano: 0, valle: 0 };

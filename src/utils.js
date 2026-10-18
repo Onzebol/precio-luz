@@ -53,13 +53,18 @@ export const periodos = {
 export const INICIO_2_0TD = "2021-06-01";
 export const hayPeriodos = (fecha) => format(fecha, "yyyy-MM-dd") >= INICIO_2_0TD;
 
+// Festivos en los que todo el día es valle (Circular 3/2020 de la CNMC): solo los de ámbito
+// nacional, sin los sustituibles por las comunidades ni los de fecha variable (Viernes Santo)
+const FESTIVOS = ["01-01", "01-06", "05-01", "08-15", "10-12", "11-01", "12-06", "12-08", "12-25"];
+export const esFestivo = (fecha) => FESTIVOS.includes(format(fecha, "MM-dd"));
+
 // Periodo de peaje 2.0TD de una hora; null en los días anteriores a esa tarifa
 export const periodoPeaje = (value, fecha, province) => {
 	if (!hayPeriodos(fecha)) return null;
 	const hora = parseInt(value.split(":")[0]);
 	const dayOfWeek = fecha.getDay();
 	const isWeekend = dayOfWeek === 6 || dayOfWeek === 0;
-	if (isWeekend) return periodos.valle;
+	if (isWeekend || esFestivo(fecha)) return periodos.valle;
 	if (province === "CYM") {
 		if ([0, 1, 2, 3, 4, 5, 6, 7].indexOf(hora) !== -1) return periodos.valle;
 		if ([8, 9, 10, 15, 16, 17, 18, 23].indexOf(hora) !== -1)

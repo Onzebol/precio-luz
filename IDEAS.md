@@ -4,14 +4,6 @@ Mejoras pensadas para más adelante, de más a menos útil. Cuando se monte una,
 
 ## Vista de día
 
-### Festivos nacionales en los periodos de peaje
-
-`periodoPeaje` no contempla los festivos nacionales: en un festivo la franja del día y la tabla marcan punta y llano cuando todo el día es valle (la calculadora ya lo avisa, pero la vista de día lo muestra mal). Es la más urgente, porque ahora la web muestra un dato erróneo.
-
-- Lista de festivos en `utils.js`. Según la Circular 3/2020 de la CNMC solo cuentan los de ámbito nacional, sin los sustituibles por las comunidades ni los de fecha variable (el Viernes Santo no cuenta); en principio 1/1, 6/1, 1/5, 15/8, 12/10, 1/11, 6/12, 8/12 y 25/12, pero hay que comprobarlo en la circular antes de montarlo.
-- `periodoPeaje` y `scripts/actualizar-datos.js` (medias por periodo de `medias.json`) la usan; hay que regenerar `medias.json` desde junio de 2021.
-- Quitar el aviso de la calculadora y la nota de CLAUDE.md.
-
 ### Cuánto cuesta poner un aparato
 
 Responder a «¿cuánto me cuesta poner la lavadora ahora y cuánto a la mejor hora?»: por ejemplo, «La lavadora (≈1 kWh, 2 h) cuesta 0,21 € ahora y 0,07 € si empiezas a las 14:00».
@@ -46,7 +38,7 @@ Botón para descargar el día (y quizá el mes) en CSV: hora, precio PCB, precio
 
 ### Aviso si falta el año nuevo en `POTENCIA`
 
-Que el workflow falle (o abra una issue) si en enero `POTENCIA` de `src/potencia.js` no tiene el año en curso, para que no se quede sin actualizar en silencio. Lo mismo valdría para la lista de festivos.
+Que el workflow falle (o abra una issue) si en enero `POTENCIA` de `src/potencia.js` no tiene el año en curso, para que no se quede sin actualizar en silencio.
 
 ## Descartadas por ahora (cuestan bastante más)
 

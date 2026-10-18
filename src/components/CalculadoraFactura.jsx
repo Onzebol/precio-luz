@@ -274,8 +274,8 @@ export function CalculadoraFactura({ medias, zona }) {
 						<p className="mt-4 text-sm text-suave">
 							Es una aproximación: el consumo de cada periodo se valora al precio medio de
 							ese periodo en el mes, así que dentro de cada uno pagarás algo más si
-							consumes en sus horas caras. No tiene en cuenta los festivos (todo el día es
-							valle) ni los descuentos del bono social.
+							consumes en sus horas caras. No tiene en cuenta los descuentos del bono
+							social.
 							{modo === "baratas" &&
 								" El consumo de cada aparato es su peso medio en los hogares españoles (IDAE, SPAHOUSEC III, 2021) aplicado a tu consumo; el tuyo puede ser otro."}
 							{mes === actual && " El mes en curso usa los precios de los días que van."}
